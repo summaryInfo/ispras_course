@@ -244,12 +244,12 @@ namespace equation::tests {
      * can be output to the stream
      */
 #define UNIT(n, expr, val) {\
-    std::cerr << "\tTest " #n ": (" #expr ") == (" #val ")..." << std::endl;\
+    std::cerr << "\t\033[1mTest " #n "\033[m: (" #expr ") == (" #val ")... ";\
     if (auto result__ = (expr), expect__ = (val); result__ == expect__)\
-        std::cerr << "\t\t...passed." << std::endl;\
-    else std::cerr << "\t\t...FAILED." << std::endl\
-         << "\tEXPECTED: " << expect__ << std::endl\
-         << "\tGOT: " << result__ << std::endl; }
+        std::cerr << "\033[32mpassed\033[m." << std::endl;\
+    else std::cerr << "\033[31mFAILED\033[m." << std::endl\
+         << "\t\t\033[31mEXPECTED\033[m: " << expect__ << std::endl\
+         << "\t\t\033[31mBUT GOT\033[m:  " << result__ << std::endl; }
 
 
     /** solve_linear() function units tests */
