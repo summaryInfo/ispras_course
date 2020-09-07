@@ -46,10 +46,10 @@ namespace equation {
          * @note This is enum for type safety reasons.
          */
         enum class tag {
-            none,
-            one,
-            two,
-            infinite,
+            none, ///< No solutions
+            one, ///< One real solution
+            two, ///< Two real solutions
+            infinite, ///< Any real number is a solution
         } const tag; ///< Readonly solution tag
 
         /**
