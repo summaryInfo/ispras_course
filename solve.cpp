@@ -244,7 +244,7 @@ namespace equation::tests {
      * can be output to the stream
      */
 #define UNIT(n, expr, val) {\
-    std::cerr << "\t\033[1mTest " #n "\033[m: (" #expr ") == (" #val ")... ";\
+    std::cerr << "\t\033[1mTest " #n "\033[m: (" #expr ") == (" #val ")...\033[70G ";\
     if (auto result__ = (expr), expect__ = (val); result__ == expect__)\
         std::cerr << "\033[32mpassed\033[m." << std::endl;\
     else std::cerr << "\033[31mFAILED\033[m." << std::endl\
