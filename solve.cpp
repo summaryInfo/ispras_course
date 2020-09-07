@@ -257,8 +257,6 @@ namespace equation::tests {
         UNIT(3, solve_linear(2., 0.), solution(0.));
         UNIT(4, solve_linear(0., 0.), solution(true));
         UNIT(5, solve_linear(0., 1.), solution(false));
-
-        std::cerr << "...ok." << std::endl;
     }
 
     /** solve_quadratic() function unit tests */
@@ -274,8 +272,6 @@ namespace equation::tests {
         UNIT(7, solve_quadratic(1., 0., 2.), solution(false));
         UNIT(8, solve_quadratic(1., 1., 0), solution(-1., 0.));
         UNIT(9, solve_quadratic(1., -2., 1), solution(1., 1.));
-
-        std::cerr << "...ok." << std::endl;
     }
 
     /** is_zero() function unit tests */
@@ -287,8 +283,6 @@ namespace equation::tests {
         UNIT(3, is_zero(-eps/2), true);
         UNIT(4, is_zero(-2*eps), false);
         UNIT(5, is_zero(2*eps), false);
-
-        std::cerr << "...ok." << std::endl;
     }
 
     /** Solution class unit tests */
@@ -315,8 +309,6 @@ namespace equation::tests {
         UNIT(18, solution(true) == solution(true), true);
         UNIT(19, solution(false) == solution(false), true);
         UNIT(20, solution(false) != solution(true), true);
-
-        std::cerr << "...ok." << std::endl;
     }
 #undef UNIT
 }
