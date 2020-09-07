@@ -1,3 +1,15 @@
+/**
+ * @file solve.cpp
+ *
+ * @brief Equation Solver
+ *
+ * Simple quadratic equation solver
+ * written with support of unit tests
+ * and documetation
+ *
+ * @authors summaryInfo
+ * @date Sep 7 2020
+ */
 #include <array>
 #include <cassert>
 #include <cmath>
