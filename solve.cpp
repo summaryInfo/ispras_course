@@ -324,13 +324,13 @@ namespace equation::tests {
 [[noreturn]] static void usage(char *argv0, int code) {
     assert(argv0);
 
-    std::cerr << "Usage:" << std::endl
-              << "    " << argv0 << " a b c" << std::endl
-              << "where a, b, c are coeficients of" << std::endl
-              << "    a*x^2 + b*x + c = 0" << std::endl ;
+    std::cerr << "Usage:\n"
+              << "    " << argv0 << " a b c\n\n"
+              << "where a, b, c are coeficients of\n"
+              << "    a*x^2 + b*x + c = 0" << std::endl;
 #ifndef NDEBUG
-    std::cerr << "Or alternatively:" << std::endl
-              << "    " << argv0 << " test" << std::endl
+    std::cerr << "\nOr alternatively:\n"
+              << "    " << argv0 << " test\n\n"
               << "to perform tests." << std::endl;
 #endif // !defined(NDEBUG)
 
@@ -363,6 +363,7 @@ int main(int argc, char *argv[]) {
         usage(argv[0], EXIT_FAILURE);
     }
 
+    std::cout << "# Set of solutions: " << std::endl;
     std::cout << equation::solve_quadratic(a, b, c) << std::endl;
 
     return EXIT_SUCCESS;
