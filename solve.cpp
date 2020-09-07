@@ -134,19 +134,15 @@ namespace equation {
     auto &operator <<(std::ostream &str, const solution &val) {
         switch(val.tag) {
         case solution::tag::none:
-            str << "{}";
-            break;
+            return str << "{}";
         case solution::tag::two:
-            str << "{" << val.first() << ", " << val.second() << "}";
-            break;
+            return str << "{" << val.first() << ", " << val.second() << "}";
         case solution::tag::one:
-            str << "{" << val.first() << "}";
-            break;
+            return str << "{" << val.first() << "}";
         case solution::tag::infinite:
-            str << "R";
+            return str << "R";
         }
-
-        return str;
+        assert(false);
     }
 
     /**
@@ -161,16 +157,12 @@ namespace equation {
         switch (val) {
         case solution::tag::none:
             return str << "tag::none";
-            break;
         case solution::tag::two:
             return str << "tag::two";
-            break;
         case solution::tag::one:
             return str << "tag::one";
-            break;
         case solution::tag::infinite:
             return str << "tag::infinite";
-            break;
         }
         assert(false);
     }
