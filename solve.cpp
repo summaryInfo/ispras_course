@@ -218,6 +218,7 @@ namespace equation {
     }
 }
 
+#ifndef NDEBUG
 /** Unit test namespace */
 namespace equation::tests {
 
@@ -314,6 +315,8 @@ namespace equation::tests {
 #undef UNIT
 }
 
+#endif // !defined(NDEBUG)
+
 /**
  * Print usage and exit.
  * 
@@ -326,15 +329,19 @@ namespace equation::tests {
     std::cerr << "Usage:" << std::endl
               << "    " << argv0 << " a b c" << std::endl
               << "where a, b, c are coeficients of" << std::endl
-              << "    a*x^2 + b*x + c = 0" << std::endl
-              << "Or alternatively:" << std::endl
+              << "    a*x^2 + b*x + c = 0" << std::endl ;
+#ifndef NDEBUG
+    std::cerr << "Or alternatively:" << std::endl
               << "    " << argv0 << " test" << std::endl
               << "to perform tests." << std::endl;
+#endif // !defined(NDEBUG)
 
     std::exit(code);
 }
 
+/** Main function */
 int main(int argc, char *argv[]) {
+#ifndef NDEBUG
     // If the only argument of program is 'test', perform tests
     if (argc == 2 && !std::strcmp(argv[1], "test")) {
         equation::tests::test_is_zero();
@@ -343,6 +350,7 @@ int main(int argc, char *argv[]) {
         equation::tests::test_solve_quadratic();
         return EXIT_SUCCESS;
     }
+#endif // !defined(NDEBUG)
 
     if (argc < 4)
         usage(argv[0], EXIT_FAILURE);

@@ -1,8 +1,14 @@
 CXXFLAGS += -std=c++17 -Wall -Wextra
 
+ifdef NDEBUG
+CXXFLAGS += -DNDEBUG=$(NDEBUG)
+else
+CXXFLAGS += -g
+endif
+
 all: solve
 
-solve: solve.cpp
+solve: solve.cpp Doxyfile
 	$(CXX) $(CXXFLAGS) $< $(LDFLAGS) -o $@
 	doxygen
 
