@@ -43,15 +43,15 @@ namespace equation {
         /**
          * One exact solution.
          *
-         * @param [in] solution.
+         * @param [in] v1 solution.
          */
         solution(double v1) : data{v1}, tag{tag::one} {}
 
         /**
          * Two exact solutions.
          *
-         * @param [in] solution 1.
-         * @param [in] solution 2.
+         * @param [in] v1 solution 1.
+         * @param [in] v2 solution 2.
          */
         solution(double v1, double v2) : data{v1, v2}, tag{tag::two} {}
 
@@ -127,6 +127,9 @@ namespace equation {
 
     /**
      * Print solution object to output stream
+     *
+     * @param [in] str output stream
+     * @param [in] val value to output
      */
     auto &operator <<(std::ostream &str, const solution &val) {
         switch(val.tag) {
@@ -146,9 +149,12 @@ namespace equation {
         return str;
     }
 
-	/**
+    /**
      * Print solution tag to output stream
-     * 
+     *
+     * @param [in] str output stream
+     * @param [in] val value to output
+     *
      * @note This is used in unit tests
      */
     auto &operator <<(std::ostream &str, enum solution::tag val) {
@@ -173,7 +179,7 @@ namespace equation {
      * Solve linear equation k*x + b = 0.
      *
      * @param [in] k fist coeficient of equation.
-     * @param [in] k second coeficient of equation.
+     * @param [in] b second coeficient of equation.
      * @return solution object.
      *
      * @note Aborts program if either k or b is not finite number.
@@ -224,11 +230,11 @@ namespace equation::tests {
 
     /**
      * Unit test macro
-     * 
+     *
      * @param [in] n Test index
      * @param [in] expr Expression to test
      * @param [in] val Expected value
-     * 
+     *
      * @note expr and val should be evaluated to
      * objects with overloaded operator<< so they
      * can be output to the stream
@@ -319,9 +325,9 @@ namespace equation::tests {
 
 /**
  * Print usage and exit.
- * 
+ *
  * @param [in] argv0 program path.
- * @param [in] exit code.
+ * @param [in] code exit code.
  */
 [[noreturn]] static void usage(char *argv0, int code) {
     assert(argv0);
