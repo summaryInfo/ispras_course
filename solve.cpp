@@ -254,7 +254,7 @@ namespace equation::tests {
 
     /** solve_linear() function units tests */
     void test_solve_linear() {
-        std::cerr << "Testing solve_linear()..." << std::endl;
+        std::cerr << std::endl << "Testing solve_linear()..." << std::endl;
 
         UNIT(1, solve_linear(1., 2.), solution(-2.));
         UNIT(2, solve_linear(2., 1.), solution(-.5));
@@ -265,7 +265,7 @@ namespace equation::tests {
 
     /** solve_quadratic() function unit tests */
     void test_solve_quadratic() {
-        std::cerr << "Testing solve_quadratic()..." << std::endl;
+        std::cerr << std::endl << "Testing solve_quadratic()..." << std::endl;
 
         UNIT(1, solve_quadratic(0., 1., 2.), solution(-2.));
         UNIT(2, solve_quadratic(0., 2., 1.), solution(-.5));
@@ -280,7 +280,7 @@ namespace equation::tests {
 
     /** is_zero() function unit tests */
     void test_is_zero() {
-        std::cerr << "Testing is_zero()..." << std::endl;
+        std::cerr << std::endl << "Testing is_zero()..." << std::endl;
 
         UNIT(1, is_zero(0.), true);
         UNIT(2, is_zero(eps/2), true);
@@ -291,7 +291,7 @@ namespace equation::tests {
 
     /** Solution class unit tests */
     void test_solution() {
-        std::cerr << "Testing class solution..." << std::endl;
+        std::cerr << std::endl << "Testing class solution..." << std::endl;
 
         UNIT(1, solution(false).tag, solution::tag::none);
         UNIT(2, solution(true).tag, solution::tag::infinite);
