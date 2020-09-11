@@ -21,6 +21,8 @@ Run unit tests:
 
 ## Notes
 
+This needs to be compiled in UNIX-like environment.
+
 You can use `make test` to run unit tests.
 
 To compile program without test support use
