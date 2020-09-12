@@ -11,10 +11,10 @@
  * @date Sep 7 2020
  */
 #include <array>
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <exception>
 #include <iostream>
 #include <type_traits>
 
@@ -82,7 +82,9 @@ namespace equation {
          * @note Aborts program if there is no solutions or infinite number of them.
          * */
         double first() const {
-            assert(tag == tag::one || tag == tag::two);
+            if(tag != tag::one && tag != tag::two)
+                throw std::length_error("No first root");
+
             return data[0];
         }
 
@@ -92,7 +94,9 @@ namespace equation {
          * @note Aborts program if there is no solutions, one solution or infinite number of them.
          * */
         double second() const {
-            assert(tag == tag::two);
+            if(tag != tag::two)
+                throw std::length_error("No second root");
+
             return data[1];
         }
 
@@ -154,7 +158,7 @@ namespace equation {
         case solution::tag::infinite:
             return str << "R";
         }
-        assert(false);
+        throw std::invalid_argument("Wrong tag");
     }
 
     /**
@@ -176,7 +180,7 @@ namespace equation {
         case solution::tag::infinite:
             return str << "tag::infinite";
         }
-        assert(false);
+        throw std::invalid_argument("Wrong tag");
     }
 
     /**
@@ -189,8 +193,8 @@ namespace equation {
      * @note Aborts program if either k or b is not finite number.
      */
     solution solve_linear(double k, double b) {
-        assert(std::isfinite(k));
-        assert(std::isfinite(b));
+        if (!std::isfinite(k) || !std::isfinite(b))
+            throw std::invalid_argument("Non-finite coeficient");
 
         if (is_zero(k))
             return {is_zero(b)};
@@ -209,9 +213,8 @@ namespace equation {
      * @note Aborts program if one of a, b or c is not finite number.
      */
     solution solve_quadratic(double a, double b, double c) {
-        assert(std::isfinite(a));
-        assert(std::isfinite(b));
-        assert(std::isfinite(c));
+        if (!std::isfinite(a) || !std::isfinite(b) || !std::isfinite(c))
+            throw std::invalid_argument("Non-finite coeficient");
 
         if (is_zero(a))
             return solve_linear(b, c);
@@ -331,7 +334,6 @@ namespace equation::tests {
  * @param [in] code exit code.
  */
 [[noreturn]] static void usage(char *argv0, int code) {
-    assert(argv0);
 
     std::cerr << "Usage:\n"
               << "    " << argv0 << " a b c\n\n"
@@ -372,8 +374,15 @@ int main(int argc, char *argv[]) {
         usage(argv[0], EXIT_FAILURE);
     }
 
-    std::cout << "# Set of solutions: " << std::endl;
-    std::cout << equation::solve_quadratic(a, b, c) << std::endl;
+    try {
+        auto res = equation::solve_quadratic(a, b, c);
+
+        std::cout << "# Set of solutions: " << std::endl;
+        std::cout << res << std::endl;
+    } catch (std::exception &ex) {
+        std::cerr << "Wrong argument: " << ex.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
