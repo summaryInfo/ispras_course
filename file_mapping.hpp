@@ -136,6 +136,7 @@ public:
 
 #ifndef NDEBUG
 namespace tests {
+    /** Test file mapping class */
     void test_file_mapping() {
         std::random_device dev;
         std::mt19937 rng(dev());
