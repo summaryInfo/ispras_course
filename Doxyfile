@@ -1,0 +1,13 @@
+PROJECT_NAME = "Quadraitc equation solver"
+PROJECT_BRIEF = "Simple program that solves quadraitc equations"
+
+OUTPUT_DIRECTORY = docs
+GENERATE_LATEX = NO
+INPUT = do_sort.cpp sort.hpp unit.hpp file_mapping.hpp
+
+MARKDOWN_SUPPORT = NO
+
+EXTRACT_ALL = YES
+EXTRACT_PRIVATE = YES
+EXTRACT_PACKAGE = YES
+EXTRACT_STATIC = YES
