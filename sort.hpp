@@ -12,7 +12,7 @@
 namespace algorithms {
 
     /** threshold used to deside when sort() switches to small_sort() */
-    template <typename It> constexpr inline static typename std::iterator_traits<It>::difference_type threshold = 16;
+    template <typename It> constexpr inline static typename std::iterator_traits<It>::difference_type threshold = 32;
 
     /**
      * Sort elements in range small range [first, last).
@@ -106,20 +106,12 @@ namespace algorithms {
         assert(first <= last);
 
         // Use quick sort until the array is small enough
-
-        while (last - first > threshold<It>) {
+		while (last - first >= threshold<It>) {
             auto part_point = sort_partition(first, last, cmp);
 
-            // Make recursive call for smaller partition
-            // in order to prevent stack overflow in worst case
-            if (part_point - first > last - part_point) {
-                quick_sort(part_point + 1, last);
-                last = part_point;
-            } else {
-                quick_sort(first, part_point);
-                first = part_point + 1;
-            }
-        }
+            quick_sort(first, part_point, cmp);
+            first = part_point + 1;
+		}
 
         // then call small_sort sort which is faster for small arrays
         small_sort(first, last, cmp);
