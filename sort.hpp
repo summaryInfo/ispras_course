@@ -178,7 +178,7 @@ namespace tests {
 
         UNITS_BEGIN;
 
-        for (size_t i = 2; i < 1000; i++) {
+        for (size_t i = 2; i < 100; i++) {
             std::vector<int> vec;
             // Generate two copies of random vector
             for (size_t j = 0; j < i; j++)
@@ -203,11 +203,11 @@ namespace tests {
     void test_quick_sort() {
         std::random_device dev;
         std::mt19937 rng(dev());
-        std::uniform_int_distribution dist(1, 100);
+        std::uniform_int_distribution dist(1, 1000);
 
         UNITS_BEGIN;
 
-        for (size_t i = 0; i < 1000; i++) {
+        for (size_t i = 0; i < 100; i++) {
             std::vector<int> vec, vec2;
             // Generate two copies of random vector
             for (size_t j = 0; j < i; j++)
