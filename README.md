@@ -1,6 +1,30 @@
-ISPRAS Course tasks
+Evgeiny Onegin sorting
 =========================
 
-All tasks are in separate branches:
+When you need write a small program as if it were a big project...
 
-1. Quadratic equation -- `quadratic`
+## Dependencies
+
+* doxygen
+* GNU make
+* C++17 compatible compiler
+
+## Example
+
+Read from `a.txt` and write results to `forward.txt`, `backward.txt` and `original.txt`:
+
+    ./do_sort a.txt forward.txt backward.txt original.txt
+
+Run unit tests:
+
+    ./do_sort test
+
+## Notes
+
+This needs to be compiled in UNIX-like environment.
+
+You can use `make test` to run unit tests.
+
+To compile program without test support use
+
+    NDEBUG=1 make
