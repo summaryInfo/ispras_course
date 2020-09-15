@@ -25,9 +25,8 @@
     assert(argv0);
 
     std::cerr << "Usage:\n"
-              << "    " << argv0 << " [infile [outfile1 [outfile2 [outfile3]]]]\n\n"
+              << "    " << argv0 << " infile [outfile1 [outfile2 [outfile3]]]\n\n"
               << "where\toutfile1 is file with lines sorted when compared forward,\n"
-              << "\t\tdefault is 'onegin.txt'\n"
               << "\toutfile2 is file with lines sorted when compared backward,\n"
               << "\t\tdefault is 'forward.txt'\n"
               << "\toutfile3 is file with original contents of file\n"
@@ -259,11 +258,12 @@ int main(int argc, char *argv[]) {
     }
 #endif // !defined(NDEBUG)
 
-    const char *in_file = argc > 1 ? argv[1] : "onegin.txt";
+    if (argc < 2)
+        usage(argv[0], EXIT_FAILURE);
 
-    file_mapping mapping(in_file);
+    file_mapping mapping(argv[1]);
     if (!mapping.is_valid()) {
-        std::cerr << "Invalid file:" << in_file << std::endl;
+        std::cerr << "Invalid file:" << argv[1] << std::endl;
         usage(argv[0], EXIT_FAILURE);
     }
 
