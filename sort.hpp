@@ -106,12 +106,12 @@ namespace algorithms {
         assert(first <= last);
 
         // Use quick sort until the array is small enough
-		while (last - first >= threshold<It>) {
+        while (last - first >= threshold<It>) {
             auto part_point = sort_partition(first, last, cmp);
 
             quick_sort(first, part_point, cmp);
             first = part_point + 1;
-		}
+        }
 
         // then call small_sort sort which is faster for small arrays
         small_sort(first, last, cmp);
