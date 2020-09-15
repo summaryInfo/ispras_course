@@ -82,9 +82,16 @@ void write_backward(const char *path, std::vector<std::pair<const char *, const 
         auto next_char = [](const char *start, const char *&str) -> wchar_t {
             if (str == start) return 0;
 
+            // This can be simplified in case of just using utf-8
+            // but in order to work with all kinds of
+            // different encodings this needs
+            // to be done that way...
+
+            // Step back to maximal char length...
             auto prev_start = std::max(str - MB_CUR_MAX, start);
             wchar_t wc = 0;
 
+            // and then move foreward until reached previous character
             auto len = std::max(mbtowc(&wc, prev_start, MB_CUR_MAX), 1);
             while (prev_start + len < str) {
                 prev_start += len;
