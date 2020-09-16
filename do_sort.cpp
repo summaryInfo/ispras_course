@@ -143,8 +143,7 @@ void write_backward(const char *path, std::vector<std::pair<const char *, const 
  */
 void write_original(const char *path, const char *data, const char *end) {
     std::fstream str(path, std::ios_base::out);
-    bool new_line = 1;
-    for (; data < end; data++) {
+    for (bool new_line = true; data < end; data++) {
         if (new_line)
             str << data << std::endl;
         new_line = !*data;
@@ -199,7 +198,6 @@ namespace tests {
         auto start = mapping.as<char>();
         auto end = start + mapping.size<char>();
         auto lines = split_lines(start, end);
-
 
         write_original("test_data_2", start, end);
 
@@ -278,7 +276,7 @@ int main(int argc, char *argv[]) {
     // We need to compare charset that way since
     // charset representation is not standardized
     // So accept "UTF-8" "UTF_8" "UTF8" in any case
-    char *charset = nl_langinfo(CODESET);
+    const char *charset = nl_langinfo(CODESET);
     utf8 = charset &&
           (std::tolower(charset[0]) == 'u') &&
           (std::tolower(charset[1]) == 't') &&
@@ -307,7 +305,7 @@ int main(int argc, char *argv[]) {
 
     file_mapping mapping(argv[1]);
     if (!mapping.is_valid()) {
-        std::cerr << "Invalid file:" << argv[1] << std::endl;
+        std::cerr << "Invalid file: " << argv[1] << std::endl;
         usage(argv[0], EXIT_FAILURE);
     }
 
