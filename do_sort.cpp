@@ -80,7 +80,6 @@ using line_frag = std::pair<const char *, const char *>;
  * @param[inout] lines vector of parsed lines
  * @param[in] next_char functor that reads characters from string fragment
  */
-
 template<typename T>
 void write_sorted(const char *path, std::vector<line_frag> &lines, T next_char) {
     algorithms::quick_sort(std::begin(lines), std::end(lines), [&next_char](auto lhs, auto rhs) -> bool {
