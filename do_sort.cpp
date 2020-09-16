@@ -37,7 +37,11 @@
 #include <utility>
 #include <vector>
 
-/** Indication that current encoding is UTF-8 */
+/** Indication that current encoding is UTF-8
+ * 
+ * It is global variable since it functions like a part of locale
+ * state that is also global
+ */
 static bool utf8;
 
 /**
