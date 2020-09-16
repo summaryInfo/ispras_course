@@ -11,9 +11,14 @@
 #include <cwchar>
 #include <cwctype>
 #include <fstream>
+#include <langinfo.h>
+#include <locale.h>
 #include <unistd.h>
 #include <utility>
 #include <vector>
+
+/** Indication that current encoding is UTF-8 */
+static bool utf8;
 
 /**
  * Print usage and exit.
@@ -44,24 +49,35 @@
 
 /**
  * Write lines sorted when comparing starting from the begginning of each lines
- * 
+ *
  * @param[in] path output file
  * @param[inout] lines vector of parsed lines
  */
 void write_forward(const char *path, std::vector<std::pair<const char *, const char *>> &lines) {
     algorithms::quick_sort(std::begin(lines), std::end(lines), [](auto lhs, auto rhs) -> bool {
+
+        // Read characters forward
         auto next_char = [](const char *&str, const char *end) -> wchar_t {
-            wchar_t ch = 0;
-            str += std::max(mbtowc(&ch, str, end - str), 1);
+            wchar_t ch = *(unsigned char *)str;
+            int len = 1;
+            if (utf8)
+                len = std::mbtowc(&ch, str, end - str);
+            str += std::max(len, 1);
             return ch;
         };
-    
+
+        auto is_alpha = [](wchar_t ch) -> bool {
+            // isalpha is defined only for ASCII, so check manually
+            // Consider any single byte character that is not ascii to be a letter
+            return utf8 ? std::iswalpha(ch) : (ch > 127 || std::isalpha(ch));
+        };
+
         wchar_t lchar{}, rchar{};
         do {
             do lchar = next_char(lhs.first, lhs.second);
-            while (lchar && !std::iswalpha(lchar));
+            while (lchar && !is_alpha(lchar));
             do rchar = next_char(rhs.first, rhs.second);
-            while (rchar && !std::iswalpha(rchar));
+            while (rchar && !is_alpha(rchar));
         } while(rchar == lchar && lchar);
         return lchar < rchar;
     });
@@ -73,40 +89,42 @@ void write_forward(const char *path, std::vector<std::pair<const char *, const c
 
 /**
  * Write lines sorted when comparing starting from the end of each lines
- * 
+ *
  * @param[in] path output file
  * @param[inout] lines vector of parsed lines
  */
 void write_backward(const char *path, std::vector<std::pair<const char *, const char *>> &lines) {
     algorithms::quick_sort(std::begin(lines), std::end(lines), [](auto lhs, auto rhs) -> bool {
+
+        // Read characters backwards
         auto next_char = [](const char *start, const char *&str) -> wchar_t {
-            if (str == start) return 0;
 
-            // This can be simplified in case of just using utf-8
-            // but in order to work with all kinds of
-            // different encodings this needs
-            // to be done that way...
+            // Go back to previous character
+            // (for single byte encodings and UTF-8)
+            do {
+                if (str == start) return 0;
+                str--;
+            } while(utf8 && (*str & 0xC0U) == 0x80U);
 
-            // Step back to maximal char length...
-            auto prev_start = std::max(str - MB_CUR_MAX, start);
-            wchar_t wc = 0;
+            // And return it
+            wchar_t ch = *(unsigned char *)str;
+            if (utf8)
+                std::mbtowc(&ch, str, MB_CUR_MAX);
+            return ch;
+        };
 
-            // and then move foreward until reached previous character
-            auto len = std::max(mbtowc(&wc, prev_start, MB_CUR_MAX), 1);
-            while (prev_start + len < str) {
-                prev_start += len;
-                len = std::max(mbtowc(&wc, prev_start, MB_CUR_MAX), 1);
-            }
-            str = prev_start;
-            return wc;
+        auto is_alpha = [](wchar_t ch) -> bool {
+            // isalpha is defined only for ASCII, so check manually
+            // Consider any single byte character that is not ascii to be a letter
+            return utf8 ? std::iswalpha(ch) : (ch > 127 || std::isalpha(ch));
         };
 
         wchar_t lchar{}, rchar{};
         do {
             do lchar = next_char(lhs.first, lhs.second);
-            while (lchar && !std::iswalpha(lchar));
+            while (lchar && !is_alpha(lchar));
             do rchar = next_char(rhs.first, rhs.second);
-            while (rchar && !std::iswalpha(rchar));
+            while (rchar && !is_alpha(rchar));
         } while(rchar == lchar && lchar);
         return lchar < rchar;
     });
@@ -118,7 +136,7 @@ void write_backward(const char *path, std::vector<std::pair<const char *, const 
 
 /**
  * Write text split to lines as its original representation
- * 
+ *
  * @param[in] path output file
  * @param[in] data text start
  * @param[in] end text end
@@ -135,15 +153,15 @@ void write_original(const char *path, const char *data, const char *end) {
 
 /**
  * Split text into lines
- * 
+ *
  * @param[inout] data text start
  * @param[inout] end text end
- * 
+ *
  * @return vector of pairs of pointer to lines ends and starts
  */
 auto split_lines(char *data, char *end) {
     std::vector<std::pair<const char *, const char *>> lines;
-    
+
     lines.emplace_back(data, nullptr);
     for (; data < end; data++) {
         if (*data == '\n' || !*data) {
@@ -164,14 +182,14 @@ auto split_lines(char *data, char *end) {
 namespace tests {
     /**
      * Test line splitting and file mapping for given contents
-     * 
+     *
      * @param[in] contents
-     * 
+     *
      * @return zero if passed or else index of failed check
      * */
     inline static int do_test(const char *contents) {
         {
-            std::fstream str("test_data_1", std::ios_base::out); 
+            std::fstream str("test_data_1", std::ios_base::out);
             str << contents;
         }
 
@@ -181,18 +199,18 @@ namespace tests {
         auto start = mapping.as<char>();
         auto end = start + mapping.size<char>();
         auto lines = split_lines(start, end);
-        
+
 
         write_original("test_data_2", start, end);
 
         {
-            std::fstream str("test_data_3", std::ios_base::out); 
+            std::fstream str("test_data_3", std::ios_base::out);
             for (auto &line : lines) {
                 if (!line.first) return 2;
                 if (!line.second) return 3;
                 if (strlen(line.first) + line.first != line.second) return 4;
 
-                str << line.first << std::endl; 
+                str << line.first << std::endl;
             }
         }
 
@@ -227,7 +245,7 @@ namespace tests {
         UNIT(do_test("\nazzz\nааа\nббб\n"), 0);
         UNIT(do_test("\nавп\nааа\nббб\nавпы\nfgdfg\nкне авыаы\n"), 0);
 
-        const char *str = 
+        const char *str =
             "jx\nnp\nni\naw\nei\nqi\ntb\nzy\npc\nmg\nac\nyh\nir\nio\nnc\n"
             "qp\ndz\nrw\nlr\nja\nnt\nxo\nxb\nbb\nlc\nef\npm\nif\noy\ntn\n"
             "xd\nsy\nfm\nwn\npg\ncb\nzm\nqo\npi\nhl\naa\nul\nvw\nrk\nmu\n"
@@ -247,11 +265,30 @@ namespace tests {
 }
 #endif
 
-
 /** Main function */
 int main(int argc, char *argv[]) {
+
+    // Ensure that wchar_t is Unicode
+    static_assert(__STDC_ISO_10646__);
+
     // Set locale from environment
-    setlocale(LC_CTYPE, "");
+    std::setlocale(LC_CTYPE, "");
+
+    // Check if current locale encoding is UTF-8
+    // We need to compare charset that way since
+    // charset representation is not standardized
+    // So accept "UTF-8" "UTF_8" "UTF8" in any case
+    char *charset = nl_langinfo(CODESET);
+    utf8 = charset &&
+          (std::tolower(charset[0]) == 'u') &&
+          (std::tolower(charset[1]) == 't') &&
+          (std::tolower(charset[2]) == 'f') &&
+          (charset[3] == '8' || charset[4] == '8');
+
+    if (!utf8 && MB_CUR_MAX > 1) {
+        std::cerr << "Non-UTF-8 multibyte encodings are not supported" << std::endl;
+        return EXIT_FAILURE;
+    }
 
 #ifndef NDEBUG
     // If the only argument of program is 'test', perform tests
