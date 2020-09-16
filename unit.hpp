@@ -1,3 +1,15 @@
+/**
+ * @file unit.hpp
+ *
+ * @brief Unit testing helper code
+ *
+ * UNIT testing helper
+ * macros + some terminal control
+ * sequences wrappers used by those macros.
+ *
+ * @authors summaryInfo
+ * @date Sep 14 2020
+ */
 #pragma once
 
 #include <iostream>
@@ -10,10 +22,10 @@ namespace term {
 
     /**
      * Move to absolute coordinates string
-     * 
+     *
      * @param[in] x new column starting from 0
      * @param[in] y new row starting from 0
-     * 
+     *
      * @note use coord_unchanged to keep coordinate the same as it was
      */
     inline static std::string move_to(int x = coord_unchanged, int y = coord_unchanged) {
@@ -31,13 +43,13 @@ namespace term {
 
     /**
      * Select bold attribute string
-     * 
+     *
      * @param[in] set Enable/disable flag
-     * 
+     *
      * @note on disable actually also diables faint
      * */
     inline static std::string bold(bool set) {
-        return set ? "\033[1m" : "\033[21m"; 
+        return set ? "\033[1m" : "\033[21m";
     }
 
     /**
@@ -57,7 +69,7 @@ namespace term {
 
     /**
      * Select terminal text color string
-     * 
+     *
      * @param[in] col New text color
      */
     inline static std::string foreground(enum color col) {
@@ -68,7 +80,7 @@ namespace term {
 
     /**
      * Select terminal background color string
-     * 
+     *
      * @param[in] col New text color
      */
     inline static std::string background(enum color col) {

@@ -1,3 +1,16 @@
+/**
+ * @file sort.hpp
+ *
+ * @brief Sorting algorithms
+ *
+ * This is an implementation
+ * of optimized quick sort templated algorithm
+ * that switches to insertion sort for small subarrays
+ *
+ * @authors summaryInfo
+ * @date Sep 15 2020
+ */
+
 #pragma once
 
 #include "unit.hpp"
@@ -123,12 +136,12 @@ namespace tests {
 
     /**
      * Print integer vertor
-     * 
+     *
      * @param[inout] str stream to print to
      * @param[in] vec vector to print
-     * 
+     *
      * @return stream
-     * 
+     *
      * @note This is required for unit tests
      */
     std::ostream &operator <<(std::ostream &str, const std::vector<int> &vec) {

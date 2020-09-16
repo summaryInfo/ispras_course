@@ -1,3 +1,16 @@
+/**
+ * @file sort.hpp
+ *
+ * @brief File mapping object implementation
+ *
+ * This is an implementation
+ * file mapping wrapper object
+ * on top of mmap interface
+ *
+ * @authors summaryInfo
+ * @date Sep 15 2020
+ */
+
 #pragma once
 
 #define _POSIX_C_SOURCE 200809L
@@ -26,7 +39,7 @@ public:
 
     /**
      * Swap two file mapping objects.
-     * 
+     *
      * @param[inout] other mapping to swap with
      */
     void swap(file_mapping &other) noexcept {
@@ -42,7 +55,7 @@ public:
 
     /**
      * Move construct file mapping.
-     * 
+     *
      * @param[inout] other mapping to borrow contents
      */
     file_mapping(file_mapping&& other) noexcept {
@@ -51,7 +64,7 @@ public:
 
     /**
      * Move assign file mapping.
-     * 
+     *
      * @param[inout] other mapping to borrow contents
      */
     file_mapping &operator=(file_mapping&& other) noexcept {
@@ -61,9 +74,9 @@ public:
 
     /**
      * Create file mapping from given file path.
-     * 
+     *
      * @param[in] path file to map
-     * 
+     *
      * @note creates invalid file mapping on error
      *       this should be checked before accessing to mapping data.
      */
@@ -96,10 +109,10 @@ public:
         if (data != MAP_FAILED)
             munmap(data, data_size);
     }
-    
+
     /**
      * Check if mapping is valid
-     * 
+     *
      * @return true iff mapping is valid
      */
     bool is_valid() const noexcept {
@@ -108,9 +121,9 @@ public:
 
     /**
      * Get representation of file data as array of type
-     * 
+     *
      * @return data pointer
-     * 
+     *
      * @throw domain_error if mapping is invalid
      */
     template<typename T> T *as() noexcept(false) {
@@ -121,9 +134,9 @@ public:
 
     /**
      * Get mapping size
-     * 
+     *
      * @return size of mapped region in units of type T
-     * 
+     *
      * @throw domain_error if mapping is invalid
      */
     template<typename T> std::size_t size() noexcept(false) {

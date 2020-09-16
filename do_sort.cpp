@@ -1,3 +1,23 @@
+/**
+ * @file do_sort.cpp
+ *
+ * @brief Main sorting logic
+ *
+ * Program that can sort
+ * lines of text encoded in
+ * various single byte encodings and UTF-8
+ * written with support of unit tests
+ * and documetation
+ *
+ * It sorts lines ignoring non-letter character
+ * In first pass lines are compared lexicographically
+ * In second pass lines are compared lexicographically but
+ * comparison starts from the end of lines
+ * In third pass lines are written in original order
+ *
+ * @authors summaryInfo
+ * @date Sep 15 2020
+ */
 
 #define _POSIX_C_SOURCE 200809L
 
