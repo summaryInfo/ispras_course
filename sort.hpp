@@ -146,7 +146,7 @@ namespace tests {
      */
     std::ostream &operator <<(std::ostream &str, const std::vector<int> &vec) {
         str << "vector{ ";
-        for (auto &el : vec)
+        for (const auto &el : vec)
             str << el << ", ";
         str << "}\n";
         return str;

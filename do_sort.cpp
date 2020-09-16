@@ -67,72 +67,19 @@ static bool utf8;
     std::exit(code);
 }
 
-/**
- * Write lines sorted when comparing starting from the begginning of each lines
- *
- * @param[in] path output file
- * @param[inout] lines vector of parsed lines
- */
-void write_forward(const char *path, std::vector<std::pair<const char *, const char *>> &lines) {
-    algorithms::quick_sort(std::begin(lines), std::end(lines), [](auto lhs, auto rhs) -> bool {
-
-        // Read characters forward
-        auto next_char = [](const char *&str, const char *end) -> wchar_t {
-            wchar_t ch = *(unsigned char *)str;
-            int len = 1;
-            if (utf8)
-                len = std::mbtowc(&ch, str, end - str);
-            str += std::max(len, 1);
-            return ch;
-        };
-
-        auto is_alpha = [](wchar_t ch) -> bool {
-            // isalpha is defined only for ASCII, so check manually
-            // Consider any single byte character that is not ascii to be a letter
-            return utf8 ? std::iswalpha(ch) : (ch > 127 || std::isalpha(ch));
-        };
-
-        wchar_t lchar{}, rchar{};
-        do {
-            do lchar = next_char(lhs.first, lhs.second);
-            while (lchar && !is_alpha(lchar));
-            do rchar = next_char(rhs.first, rhs.second);
-            while (rchar && !is_alpha(rchar));
-        } while(rchar == lchar && lchar);
-        return lchar < rchar;
-    });
-
-    std::fstream str(path, std::ios_base::out);
-    for (auto &line : lines)
-        str << line.first << std::endl;
-}
+using line_frag = std::pair<const char *, const char *>;
 
 /**
  * Write lines sorted when comparing starting from the end of each lines
  *
  * @param[in] path output file
  * @param[inout] lines vector of parsed lines
+ * @param[in] next_char functor that reads characters from string fragment
  */
-void write_backward(const char *path, std::vector<std::pair<const char *, const char *>> &lines) {
-    algorithms::quick_sort(std::begin(lines), std::end(lines), [](auto lhs, auto rhs) -> bool {
 
-        // Read characters backwards
-        auto next_char = [](const char *start, const char *&str) -> wchar_t {
-
-            // Go back to previous character
-            // (for single byte encodings and UTF-8)
-            do {
-                if (str == start) return 0;
-                str--;
-            } while(utf8 && (*str & 0xC0U) == 0x80U);
-
-            // And return it
-            wchar_t ch = *(unsigned char *)str;
-            if (utf8)
-                std::mbtowc(&ch, str, MB_CUR_MAX);
-            return ch;
-        };
-
+template<typename T>
+void write_sorted(const char *path, std::vector<line_frag> &lines, T next_char) {
+    algorithms::quick_sort(std::begin(lines), std::end(lines), [&next_char](auto lhs, auto rhs) -> bool {
         auto is_alpha = [](wchar_t ch) -> bool {
             // isalpha is defined only for ASCII, so check manually
             // Consider any single byte character that is not ascii to be a letter
@@ -141,9 +88,10 @@ void write_backward(const char *path, std::vector<std::pair<const char *, const 
 
         wchar_t lchar{}, rchar{};
         do {
-            do lchar = next_char(lhs.first, lhs.second);
+            do lchar = next_char(lhs);
             while (lchar && !is_alpha(lchar));
-            do rchar = next_char(rhs.first, rhs.second);
+
+            do rchar = next_char(rhs);
             while (rchar && !is_alpha(rchar));
         } while(rchar == lchar && lchar);
         return lchar < rchar;
@@ -197,57 +145,75 @@ auto split_lines(char *data, char *end) {
     return lines;
 }
 
+/**
+ * Read previous (multibyte) character in current encoding from string
+ *
+ * This works for single byte legacy encodings and UTF-8
+ * Other encodings cannot be properly read backwards
+ *
+ * @note Moves end of line fragment
+ *
+ * @param[inout] line fragment reference
+ *
+ * @return next character
+ */
+wchar_t prev_char(line_frag &line) {
+    // Go back to previous character
+    // (for single byte encodings and UTF-8)
+    do {
+        if (line.first == line.second) return 0;
+        line.second--;
+    } while(utf8 && (*line.second & 0xC0U) == 0x80U);
+
+    // And return it
+    wchar_t ch = *(unsigned char *)line.second;
+    if (utf8) {
+        std::mbtowc(&ch, line.second,
+                    line.second - line.first);
+    }
+
+    return ch;
+}
+
+/**
+ * Read next (multibyte) character in current encoding from string
+ *
+ * @note Moves start of line fragment
+ *
+ * @param[inout] line fragment reference
+ *
+ * @return next character
+ */
+wchar_t next_char(line_frag &line) {
+    int len = 1;
+    wchar_t ch = *(unsigned char *)line.first;
+    if (utf8) {
+        len = std::mbtowc(&ch, line.first,
+                          line.second - line.first);
+    }
+    line.first += std::max(len, 1);
+    return ch;
+}
+
+
 #ifndef NDEBUG
 namespace tests {
     /**
-     * Test line splitting and file mapping for given contents
+     * Print wchar_t vertor
      *
-     * @param[in] contents
+     * @param[inout] str stream to print to
+     * @param[in] vec vector to print
      *
-     * @return zero if passed or else index of failed check
-     * */
-    inline static int do_test(const char *contents) {
-        {
-            std::fstream str("test_data_1", std::ios_base::out);
-            str << contents;
-        }
-
-        ::file_mapping mapping("test_data_1");
-        if (!mapping.is_valid()) return 1;
-
-        auto start = mapping.as<char>();
-        auto end = start + mapping.size<char>();
-        auto lines = split_lines(start, end);
-
-        write_original("test_data_2", start, end);
-
-        {
-            std::fstream str("test_data_3", std::ios_base::out);
-            for (auto &line : lines) {
-                if (!line.first) return 2;
-                if (!line.second) return 3;
-                if (strlen(line.first) + line.first != line.second) return 4;
-
-                str << line.first << std::endl;
-            }
-        }
-
-        ::file_mapping data_1("test_data_1");
-        if (!data_1.is_valid()) return 5;
-
-        ::file_mapping data_2("test_data_2");
-        if (!data_2.is_valid()) return 6;
-
-        ::file_mapping data_3("test_data_3");
-        if (!data_3.is_valid()) return 7;
-
-        if (data_1.size<char>() != data_2.size<char>()) return 8;
-        if (data_1.size<char>() != data_3.size<char>()) return 9;
-
-        if (std::memcmp(data_1.as<void>(), data_2.as<void>(), data_1.size<char>())) return 10;
-        if (std::memcmp(data_1.as<void>(), data_3.as<void>(), data_1.size<char>())) return 11;
-
-        return 0;
+     * @return stream
+     *
+     * @note This is required for unit tests
+     */
+    std::ostream &operator <<(std::ostream &str, const std::vector<wchar_t> &vec) {
+        str << "vector{ ";
+        for (const auto &el : vec)
+            str << (unsigned)el << ", ";
+        str << "}\n";
+        return str;
     }
 
     /**
@@ -255,8 +221,60 @@ namespace tests {
      *    - file mapping
      *    - line splitting
      *    - original contens writing
+     *    - character reading functions
      */
     void test_comparators() {
+        /**
+         * Test line splitting and file mapping for given contents
+         *
+         * @param[in] contents
+         *
+         * @return zero if passed or else index of failed check
+         */
+        auto do_test = [](const char *contents) {
+            {
+                std::fstream str("test_data_1", std::ios_base::out);
+                str << contents;
+            }
+
+            ::file_mapping mapping("test_data_1");
+            if (!mapping.is_valid()) return 1;
+
+            auto start = mapping.as<char>();
+            auto end = start + mapping.size<char>();
+            auto lines = split_lines(start, end);
+
+            write_original("test_data_2", start, end);
+
+            {
+                std::fstream str("test_data_3", std::ios_base::out);
+                for (auto &line : lines) {
+                    if (!line.first) return 2;
+                    if (!line.second) return 3;
+                    if (strlen(line.first) + line.first != line.second) return 4;
+
+                    str << line.first << std::endl;
+                }
+            }
+
+            ::file_mapping data_1("test_data_1");
+            if (!data_1.is_valid()) return 5;
+
+            ::file_mapping data_2("test_data_2");
+            if (!data_2.is_valid()) return 6;
+
+            ::file_mapping data_3("test_data_3");
+            if (!data_3.is_valid()) return 7;
+
+            if (data_1.size<char>() != data_2.size<char>()) return 8;
+            if (data_1.size<char>() != data_3.size<char>()) return 9;
+
+            if (std::memcmp(data_1.as<void>(), data_2.as<void>(), data_1.size<char>())) return 10;
+            if (std::memcmp(data_1.as<void>(), data_3.as<void>(), data_1.size<char>())) return 11;
+
+            return 0;
+        };
+
         UNITS_BEGIN;
 
         UNIT(do_test("a\nb\nc\nd\n"), 0);
@@ -273,8 +291,24 @@ namespace tests {
             "zq\nzw\nkp\nqa\nbk\ncv\nzx\nmb\nua\ncd\n";
         UNIT(do_test(str), 0);
 
-        UNITS_END;
+        auto test_string = [&](const char *str) {
+            line_frag frag{str, str + std::strlen(str)};
+            auto frag2 = frag;
+            std::vector<wchar_t> forward, backward;
+            for (wchar_t ch; (ch = next_char(frag)); ) forward.push_back(ch);
+            for (wchar_t ch; (ch = prev_char(frag2)); ) backward.push_back(ch);
 
+            std::reverse(std::begin(backward), std::end(backward));
+
+            UNIT(backward, forward);
+        };
+
+        test_string("Не желаете ли отведатьTest常温核融合");
+        test_string("JHGASKDLJH:ASLHF:OU:BVUA :O IFH:  FH:OSUDHFU");
+        test_string(" ");
+        test_string("");
+
+        UNITS_END;
 
         unlink("test_data_1");
         unlink("test_data_2");
@@ -333,8 +367,8 @@ int main(int argc, char *argv[]) {
     char *end = data + mapping.size<char>();
     auto lines = split_lines(data, end);
 
-    write_forward(argc > 2 ? argv[2] : "forward.txt", lines);
-    write_backward(argc > 3 ? argv[3] : "backward.txt", lines);
+    write_sorted(argc > 3 ? argv[3] : "backward.txt", lines, prev_char);
+    write_sorted(argc > 2 ? argv[2] : "forward.txt", lines, next_char);
     write_original(argc > 4 ? argv[4] : "original.txt", data, end);
 
     return EXIT_SUCCESS;
