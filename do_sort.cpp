@@ -82,7 +82,7 @@ static bool utf8;
  * @param[in] next_char functor that reads characters from string fragment
  */
 template<typename T>
-void write_sorted(const char *path, std::vector<line_frag> &lines, T next_char) {
+static void write_sorted(const char *path, std::vector<line_frag> &lines, T next_char) {
     assert(path);
 
     algorithms::quick_sort(std::begin(lines), std::end(lines), [&next_char](auto lhs, auto rhs) -> bool {
@@ -119,7 +119,7 @@ void write_sorted(const char *path, std::vector<line_frag> &lines, T next_char) 
  * @param[in] data text start
  * @param[in] end text end
  */
-void write_original(const char *path, const char *data, const char *end) {
+static void write_original(const char *path, const char *data, const char *end) {
     assert(data && end && data <= end);
     assert(path);
 
@@ -143,7 +143,7 @@ void write_original(const char *path, const char *data, const char *end) {
  *
  * @return vector of pairs of pointer to lines ends and starts
  */
-auto split_lines(char *data, char *end) {
+static auto split_lines(char *data, char *end) {
     assert(data && end && data <= end);
 
     std::vector<std::pair<const char *, const char *>> lines;
@@ -176,7 +176,7 @@ auto split_lines(char *data, char *end) {
  *
  * @return next character
  */
-wchar_t prev_char(line_frag &line) {
+static wchar_t prev_char(line_frag &line) {
     assert(line.first && line.second);
 
     // Go back to previous character
@@ -204,7 +204,7 @@ wchar_t prev_char(line_frag &line) {
  *
  * @return next character
  */
-wchar_t next_char(line_frag &line) {
+static wchar_t next_char(line_frag &line) {
     assert(line.first && line.second);
 
     int len = 1;
