@@ -3,6 +3,14 @@ Evgeniy Onegin sorting
 
 When you need write a small program as if it were a big project...
 
+## Description
+
+This program sorts input file lines and writes to different files in 3 ways:
+
+* Comparing from the start of each line, ignoring non-alphabetic characters
+* Comparing from the end of each line, ignoring non-alphabetic characters
+* Original file contents
+
 ## Dependencies
 
 * doxygen
