@@ -28,3 +28,8 @@ You can use `make test` to run unit tests.
 To compile program without test support use
 
     NDEBUG=1 make
+
+To start program in single byte mode, change current locale:
+
+    LC_ALL=C ./do_sort cp1251.txt
+
