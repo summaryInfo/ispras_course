@@ -171,8 +171,7 @@ wchar_t prev_char(line_frag &line) {
     // And return it
     wchar_t ch = *(unsigned char *)line.second;
     if (utf8) {
-        std::mbtowc(&ch, line.second,
-                    line.second - line.first);
+        std::mbtowc(&ch, line.second, MB_CUR_MAX);
     }
 
     return ch;
