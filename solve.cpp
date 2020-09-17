@@ -219,16 +219,19 @@ namespace equation {
         if (is_zero(a))
             return solve_linear(b, c);
 
-        if (auto det = b*b - 4.*a*c; det > eps) {
+        b /= a;
+        c /= a;
+
+        if (auto det = b*b - 4.*c; det > eps) {
             auto sqrt_det = std::sqrt(det);
             return {
-                (-b - sqrt_det) / (2. * a),
-                (-b + sqrt_det) / (2. * a),
+                (-b - sqrt_det) / 2.,
+                (-b + sqrt_det) / 2.,
             };
         } else if (is_zero(det)) {
             return {
-                -b / (2. * a),
-                -b / (2. * a),
+                -b / 2.,
+                -b / 2.,
             };
         }
 
