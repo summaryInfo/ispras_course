@@ -26,6 +26,7 @@
 #include "unit.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <clocale>
 #include <cstring>
 #include <cwchar>
@@ -36,6 +37,8 @@
 #include <unistd.h>
 #include <utility>
 #include <vector>
+
+using line_frag = std::pair<const char *, const char *>;
 
 /** Indication that current encoding is UTF-8
  * 
@@ -71,8 +74,6 @@ static bool utf8;
     std::exit(code);
 }
 
-using line_frag = std::pair<const char *, const char *>;
-
 /**
  * Write lines sorted when comparing starting from the end of each lines
  *
@@ -82,6 +83,8 @@ using line_frag = std::pair<const char *, const char *>;
  */
 template<typename T>
 void write_sorted(const char *path, std::vector<line_frag> &lines, T next_char) {
+    assert(path);
+
     algorithms::quick_sort(std::begin(lines), std::end(lines), [&next_char](auto lhs, auto rhs) -> bool {
         auto is_alpha = [](wchar_t ch) -> bool {
             // isalpha is defined only for ASCII, so check manually
@@ -101,6 +104,10 @@ void write_sorted(const char *path, std::vector<line_frag> &lines, T next_char) 
     });
 
     std::fstream str(path, std::ios_base::out);
+    if (!str.is_open()) {
+        std::cerr << "Cannot open file '" << path << "'" << std::endl;
+        return;
+    }
     for (auto &line : lines)
         str << line.first << std::endl;
 }
@@ -113,7 +120,14 @@ void write_sorted(const char *path, std::vector<line_frag> &lines, T next_char) 
  * @param[in] end text end
  */
 void write_original(const char *path, const char *data, const char *end) {
+    assert(data && end && data <= end);
+    assert(path);
+
     std::fstream str(path, std::ios_base::out);
+    if (!str.is_open()) {
+        std::cerr << "Cannot open file '" << path << "'" << std::endl;
+        return;
+    }
     for (bool new_line = true; data < end; data++) {
         if (new_line)
             str << data << std::endl;
@@ -130,6 +144,8 @@ void write_original(const char *path, const char *data, const char *end) {
  * @return vector of pairs of pointer to lines ends and starts
  */
 auto split_lines(char *data, char *end) {
+    assert(data && end && data <= end);
+
     std::vector<std::pair<const char *, const char *>> lines;
 
     lines.emplace_back(data, nullptr);
@@ -161,6 +177,8 @@ auto split_lines(char *data, char *end) {
  * @return next character
  */
 wchar_t prev_char(line_frag &line) {
+    assert(line.first && line.second);
+
     // Go back to previous character
     // (for single byte encodings and UTF-8)
     do {
@@ -187,6 +205,8 @@ wchar_t prev_char(line_frag &line) {
  * @return next character
  */
 wchar_t next_char(line_frag &line) {
+    assert(line.first && line.second);
+
     int len = 1;
     wchar_t ch = *(unsigned char *)line.first;
     if (utf8) {
