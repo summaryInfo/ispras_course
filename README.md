@@ -1,4 +1,4 @@
-Evgeiny Onegin sorting
+Evgeniy Onegin sorting
 =========================
 
 When you need write a small program as if it were a big project...
