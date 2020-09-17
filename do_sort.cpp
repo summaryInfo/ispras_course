@@ -234,7 +234,7 @@ namespace tests {
         str << "vector{ ";
         for (const auto &el : vec)
             str << (unsigned)el << ", ";
-        str << "}\n";
+        str << "}";
         return str;
     }
 
