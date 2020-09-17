@@ -259,7 +259,7 @@ namespace tests {
                 str << contents;
             }
 
-            ::file_mapping mapping("test_data_1");
+            util::file_mapping mapping("test_data_1");
             if (!mapping.is_valid()) return 1;
 
             auto start = mapping.as<char>();
@@ -279,13 +279,13 @@ namespace tests {
                 }
             }
 
-            ::file_mapping data_1("test_data_1");
+            util::file_mapping data_1("test_data_1");
             if (!data_1.is_valid()) return 5;
 
-            ::file_mapping data_2("test_data_2");
+            util::file_mapping data_2("test_data_2");
             if (!data_2.is_valid()) return 6;
 
-            ::file_mapping data_3("test_data_3");
+            util::file_mapping data_3("test_data_3");
             if (!data_3.is_valid()) return 7;
 
             if (data_1.size<char>() != data_2.size<char>()) return 8;
@@ -379,7 +379,7 @@ int main(int argc, char *argv[]) {
     if (argc < 2)
         usage(argv[0], EXIT_FAILURE);
 
-    file_mapping mapping(argv[1]);
+    util::file_mapping mapping(argv[1]);
     if (!mapping.is_valid()) {
         std::cerr << "Invalid file: " << argv[1] << std::endl;
         usage(argv[0], EXIT_FAILURE);
