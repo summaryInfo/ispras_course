@@ -95,7 +95,7 @@ namespace term {
     inline static std::string reset_sgr() {
         return "\033[m";
     }
-};
+}
 
 /**
  * Begin unit test group macro

@@ -1,4 +1,4 @@
-CXXFLAGS += -std=c++17 -Wall -Wextra
+CXXFLAGS += -std=c++17 -Wall -Wextra -Wpedantic
 
 ifdef NDEBUG
 CXXFLAGS += -DNDEBUG=$(NDEBUG)

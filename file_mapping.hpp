@@ -182,5 +182,5 @@ namespace tests {
 
         unlink("test_data_1");
     }
-};
+}
 #endif
