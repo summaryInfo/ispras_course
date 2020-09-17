@@ -10,6 +10,9 @@
  * @authors summaryInfo
  * @date Sep 7 2020
  */
+
+#include "unit.hpp"
+
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -242,88 +245,67 @@ namespace equation {
 #ifndef NDEBUG
 /** Unit test namespace */
 namespace equation::tests {
-
-    /**
-     * Unit test macro
-     *
-     * @param [in] n Test index
-     * @param [in] expr Expression to test
-     * @param [in] val Expected value
-     *
-     * @note expr and val should be evaluated to
-     * objects with overloaded operator<< so they
-     * can be output to the stream
-     */
-#define UNIT(n, expr, val) {\
-    std::cerr << "\t\033[1mTest " #n "\033[m: (" #expr ") == (" #val ")...\033[70G ";\
-    if (auto result__ = (expr), expect__ = (val); result__ == expect__)\
-        std::cerr << "\033[32mpassed\033[m." << std::endl;\
-    else std::cerr << "\033[31mFAILED\033[m." << std::endl\
-         << "\t\t\033[31mEXPECTED\033[m: " << expect__ << std::endl\
-         << "\t\t\033[31mBUT GOT\033[m:  " << result__ << std::endl; }
-
-
     /** solve_linear() function units tests */
     void test_solve_linear() {
-        std::cerr << std::endl << "Testing solve_linear()..." << std::endl;
-
-        UNIT(1, solve_linear(1., 2.), solution(-2.));
-        UNIT(2, solve_linear(2., 1.), solution(-.5));
-        UNIT(3, solve_linear(2., 0.), solution(0.));
-        UNIT(4, solve_linear(0., 0.), solution(true));
-        UNIT(5, solve_linear(0., 1.), solution(false));
+        UNITS_BEGIN;
+        UNIT(solve_linear(1., 2.), solution(-2.));
+        UNIT(solve_linear(2., 1.), solution(-.5));
+        UNIT(solve_linear(2., 0.), solution(0.));
+        UNIT(solve_linear(0., 0.), solution(true));
+        UNIT(solve_linear(0., 1.), solution(false));
+        UNITS_END;
     }
 
     /** solve_quadratic() function unit tests */
     void test_solve_quadratic() {
-        std::cerr << std::endl << "Testing solve_quadratic()..." << std::endl;
-
-        UNIT(1, solve_quadratic(0., 1., 2.), solution(-2.));
-        UNIT(2, solve_quadratic(0., 2., 1.), solution(-.5));
-        UNIT(3, solve_quadratic(0., 2., 0.), solution(0.));
-        UNIT(4, solve_quadratic(0., 0., 0.), solution(true));
-        UNIT(5, solve_quadratic(0., 0., 1.), solution(false));
-        UNIT(6, solve_quadratic(2., 0., 0.), solution(0., 0.));
-        UNIT(7, solve_quadratic(1., 0., 2.), solution(false));
-        UNIT(8, solve_quadratic(1., 1., 0), solution(-1., 0.));
-        UNIT(9, solve_quadratic(1., -2., 1), solution(1., 1.));
+        UNITS_BEGIN;
+        UNIT(solve_quadratic(0., 1., 2.), solution(-2.));
+        UNIT(solve_quadratic(0., 2., 1.), solution(-.5));
+        UNIT(solve_quadratic(0., 2., 0.), solution(0.));
+        UNIT(solve_quadratic(0., 0., 0.), solution(true));
+        UNIT(solve_quadratic(0., 0., 1.), solution(false));
+        UNIT(solve_quadratic(2., 0., 0.), solution(0., 0.));
+        UNIT(solve_quadratic(1., 0., 2.), solution(false));
+        UNIT(solve_quadratic(1., 1., 0), solution(-1., 0.));
+        UNIT(solve_quadratic(1., -2., 1), solution(1., 1.));
+        UNITS_END;
     }
 
     /** is_zero() function unit tests */
     void test_is_zero() {
-        std::cerr << std::endl << "Testing is_zero()..." << std::endl;
-
-        UNIT(1, is_zero(0.), true);
-        UNIT(2, is_zero(eps/2), true);
-        UNIT(3, is_zero(-eps/2), true);
-        UNIT(4, is_zero(-2*eps), false);
-        UNIT(5, is_zero(2*eps), false);
+        UNITS_BEGIN;
+        UNIT(is_zero(0.), true);
+        UNIT(is_zero(eps/2), true);
+        UNIT(is_zero(-eps/2), true);
+        UNIT(is_zero(-2*eps), false);
+        UNIT(is_zero(2*eps), false);
+        UNITS_END;
     }
 
     /** Solution class unit tests */
     void test_solution() {
-        std::cerr << std::endl << "Testing class solution..." << std::endl;
-
-        UNIT(1, solution(false).tag, solution::tag::none);
-        UNIT(2, solution(true).tag, solution::tag::infinite);
-        UNIT(3, solution(2.).tag, solution::tag::one);
-        UNIT(4, is_zero(solution(2.).first() - 2.), true);
-        UNIT(5, solution(2., 2.).tag, solution::tag::two);
-        UNIT(6, is_zero(solution(2., 2.).first() - 2.), true);
-        UNIT(7, is_zero(solution(2., 2.).second() - 2.), true);
-        UNIT(8, solution(2., 2.) == solution(2., 2.), true);
-        UNIT(9, solution(2., 2.) != solution(2., 3.), true);
-        UNIT(10, solution(2., 2.) != solution(3., 2.), true);
-        UNIT(11, solution(2., 2.) != solution(2.), true);
-        UNIT(12, solution(2., 2.) != solution(true), true);
-        UNIT(13, solution(2., 2.) != solution(false), true);
-        UNIT(14, solution(2.) == solution(2.), true);
-        UNIT(15, solution(2.) != solution(3.), true);
-        UNIT(16, solution(2.) != solution(false), true);
-        UNIT(17, solution(2.) != solution(true), true);
-        UNIT(18, solution(true) == solution(true), true);
-        UNIT(19, solution(false) == solution(false), true);
-        UNIT(20, solution(false) != solution(true), true);
+        UNITS_BEGIN;
+        UNIT(solution(false).tag, solution::tag::none);
+        UNIT(solution(true).tag, solution::tag::infinite);
+        UNIT(solution(2.).tag, solution::tag::one);
+        UNIT(is_zero(solution(2.).first() - 2.), true);
+        UNIT(solution(2., 2.).tag, solution::tag::two);
+        UNIT(is_zero(solution(2., 2.).first() - 2.), true);
+        UNIT(is_zero(solution(2., 2.).second() - 2.), true);
+        UNIT(solution(2., 2.) == solution(2., 2.), true);
+        UNIT(solution(2., 2.) != solution(2., 3.), true);
+        UNIT(solution(2., 2.) != solution(3., 2.), true);
+        UNIT(solution(2., 2.) != solution(2.), true);
+        UNIT(solution(2., 2.) != solution(true), true);
+        UNIT(solution(2., 2.) != solution(false), true);
+        UNIT(solution(2.) == solution(2.), true);
+        UNIT(solution(2.) != solution(3.), true);
+        UNIT(solution(2.) != solution(false), true);
+        UNIT(solution(2.) != solution(true), true);
+        UNIT(solution(true) == solution(true), true);
+        UNIT(solution(false) == solution(false), true);
+        UNIT(solution(false) != solution(true), true);
+        UNITS_END;
     }
 #undef UNIT
 }

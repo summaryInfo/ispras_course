@@ -1,4 +1,4 @@
-CXXFLAGS += -std=c++17 -Wall -Wextra
+CXXFLAGS += -std=c++17 -Wall -Wextra -Wpedantic -Wfloat-equal
 
 ifdef NDEBUG
 CXXFLAGS += -DNDEBUG=$(NDEBUG)
@@ -8,7 +8,7 @@ endif
 
 all: solve
 
-solve: solve.cpp Doxyfile
+solve: solve.cpp Doxyfile unit.hpp
 	$(CXX) $(CXXFLAGS) $< $(LDFLAGS) -o $@
 	doxygen
 
