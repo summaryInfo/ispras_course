@@ -120,7 +120,7 @@ namespace term {
  */
 #define UNIT(expr, val) do {\
         std::cerr << term::bold(true) << "\tTest " << unit_count__++ << term::reset_sgr() \
-                  << ": (" #expr ") == (" #val ")..." << term::move_to(100); \
+                  << ": (" #expr ") == (" #val ")..." << term::move_to(90); \
         if (auto result__ = (expr), expect__ = (val); result__ == expect__)\
             std::cerr << term::foreground(term::color::green) << "passed" << term::reset_sgr() << "." << std::endl;\
         else std::cerr << term::foreground(term::color::red) << "FAILED" << term::reset_sgr() << "." << std::endl\
