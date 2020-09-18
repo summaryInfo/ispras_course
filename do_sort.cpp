@@ -41,7 +41,7 @@
 using line_frag = std::pair<const char *, const char *>;
 
 /** Indication that current encoding is UTF-8
- * 
+ *
  * It is global variable since it functions like a part of locale
  * state that is also global
  */
@@ -89,7 +89,7 @@ static void write_sorted(const char *path, std::vector<line_frag> &lines, T next
         auto is_alpha = [](wchar_t ch) -> bool {
             // isalpha is defined only for ASCII, so check manually
             // Consider any single byte character that is not ascii to be a letter
-            return utf8 ? std::iswalpha(ch) : (ch > 127 || std::isalpha(ch));
+            return utf8 ? std::iswalpha(ch) : (static_cast<unsigned>(ch) > 127U || std::isalpha(ch));
         };
 
         wchar_t lchar{}, rchar{};
@@ -329,6 +329,36 @@ namespace tests {
         test_string("JHGASKDLJH:ASLHF:OU:BVUA :O IFH:  FH:OSUDHFU");
         test_string(" ");
         test_string("");
+
+        auto test_sorted = [&](const char *str, const char *ref_fwd, const char *ref_back) {
+            std::vector<char> data(str, str + std::strlen(str) + 1);
+
+            auto lines = split_lines(data.data(), data.data() + data.size() - 1);
+
+            write_sorted("test_data_2", lines, next_char);
+            write_sorted("test_data_3", lines, prev_char);
+
+            util::file_mapping data_2("test_data_2");
+            UNIT(data_2.is_valid(), true);
+            if (!data_2.is_valid()) return;
+
+            util::file_mapping data_3("test_data_3");
+            UNIT(data_3.is_valid(), true);
+            if (!data_3.is_valid()) return ;
+
+            UNIT(data_2.size<char>(), std::strlen(ref_fwd));
+            UNIT(data_3.size<char>(), std::strlen(ref_back));
+
+            UNIT(std::memcmp(data_2.as<char>(), ref_fwd, data_2.size<char>()), 0);
+            UNIT(std::memcmp(data_3.as<char>(), ref_back, data_3.size<char>()), 0);
+        };
+
+        test_sorted("a\nc\nb\n", "a\nb\nc\n", "a\nb\nc\n");
+        test_sorted("az\ncy\nbx\n", "az\nbx\ncy\n", "bx\ncy\naz\n");
+        test_sorted("\n", "\n", "\n");
+        test_sorted("-\na\n-\n", "-\n-\na\n", "-\n-\na\n");
+        test_sorted("a\nc-\n-b\n", "a\n-b\nc-\n", "a\n-b\nc-\n");
+        test_sorted("a..z\ncy..\n!bx\n", "a..z\n!bx\ncy..\n", "!bx\ncy..\na..z\n");
 
         UNITS_END;
 
