@@ -356,6 +356,7 @@ namespace tests {
         test_sorted("a\nc\nb\n", "a\nb\nc\n", "a\nb\nc\n");
         test_sorted("az\ncy\nbx\n", "az\nbx\ncy\n", "bx\ncy\naz\n");
         test_sorted("\n", "\n", "\n");
+        test_sorted("a", "a\n", "a\n");
         test_sorted("-\na\n-\n", "-\n-\na\n", "-\n-\na\n");
         test_sorted("a\nc-\n-b\n", "a\n-b\nc-\n", "a\n-b\nc-\n");
         test_sorted("a..z\ncy..\n!bx\n", "a..z\n!bx\ncy..\n", "!bx\ncy..\na..z\n");
