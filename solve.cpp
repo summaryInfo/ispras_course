@@ -349,24 +349,18 @@ int main(int argc, char *argv[]) {
     if (argc < 4)
         usage(argv[0], EXIT_FAILURE);
 
-    double a{}, b{}, c{};
     try {
-        a = std::stod(argv[1]);
-        b = std::stod(argv[2]);
-        c = std::stod(argv[3]);
-    } catch (const std::exception &ex) {
-        std::cerr << "Wrong argument: " << ex.what() << std::endl;
-        usage(argv[0], EXIT_FAILURE);
-    }
+        auto a = std::stod(argv[1]);
+        auto b = std::stod(argv[2]);
+        auto c = std::stod(argv[3]);
 
-    try {
         auto res = equation::solve_quadratic(a, b, c);
 
         std::cout << "# Set of solutions: " << std::endl;
         std::cout << res << std::endl;
-    } catch (std::exception &ex) {
+    } catch (const std::exception &ex) {
         std::cerr << "Wrong argument: " << ex.what() << std::endl;
-        return EXIT_FAILURE;
+        usage(argv[0], EXIT_FAILURE);
     }
 
     return EXIT_SUCCESS;
