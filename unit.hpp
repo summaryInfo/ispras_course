@@ -20,6 +20,8 @@ namespace term {
     /** Special value indicating that coordinate should stay unchanged */
     constexpr inline static int coord_unchanged = 1;
 
+#define CSI "\033["
+
     /**
      * Move to absolute coordinates string
      *
@@ -32,11 +34,11 @@ namespace term {
         std::stringstream ss;
         if (x != coord_unchanged) {
             if (y != coord_unchanged)
-                ss << "\033[" << y + 1 << x + 1 << "H";
+                ss << CSI << y + 1 << x + 1 << "H";
             else
-                ss << "\033[" << x + 1 << "G";
+                ss << CSI << x + 1 << "G";
         } else if (y != coord_unchanged) {
-            ss << "\033[" << y + 1 << "d";
+            ss << CSI << y + 1 << "d";
         }
         return ss.str();
     }
@@ -47,9 +49,9 @@ namespace term {
      * @param[in] set Enable/disable flag
      *
      * @note on disable actually also diables faint
-     * */
+     */
     inline static std::string bold(bool set) {
-        return set ? "\033[1m" : "\033[21m";
+        return set ? CSI "1m" : CSI "21m";
     }
 
     /**
@@ -74,7 +76,7 @@ namespace term {
      */
     inline static std::string foreground(enum color col) {
         std::stringstream ss;
-        ss << "\033[" << static_cast<int>(col) + 30 << "m";
+        ss << CSI << static_cast<int>(col) + 30 << "m";
         return ss.str();
     }
 
@@ -85,7 +87,7 @@ namespace term {
      */
     inline static std::string background(enum color col) {
         std::stringstream ss;
-        ss << "\033[" << static_cast<int>(col) + 40 << "m";
+        ss << CSI << static_cast<int>(col) + 40 << "m";
         return ss.str();
     }
 
@@ -93,7 +95,7 @@ namespace term {
      * Reset terminal renderition state string
      */
     inline static std::string reset_sgr() {
-        return "\033[m";
+        return CSI "m";
     }
 }
 
@@ -121,9 +123,11 @@ namespace term {
 #define UNIT(expr, val) do {\
         std::cerr << term::bold(true) << "\tTest " << unit_count__++ << term::reset_sgr() \
                   << ": (" #expr ") == (" #val ")..." << term::move_to(90); \
-        if (auto result__ = (expr), expect__ = (val); result__ == expect__)\
+        if (auto result__ = (expr), expect__ = (val); result__ == expect__) {\
             std::cerr << term::foreground(term::color::green) << "passed" << term::reset_sgr() << "." << std::endl;\
-        else std::cerr << term::foreground(term::color::red) << "FAILED" << term::reset_sgr() << "." << std::endl\
-             << term::foreground(term::color::red) << "\t\tEXPECTED" << term::reset_sgr() <<  ": " << expect__ << std::endl\
-             << term::foreground(term::color::red) << "\t\tGOT" << term::reset_sgr()  << ":  " << result__ << std::endl;\
+        } else {\
+            std::cerr << term::foreground(term::color::red) << "FAILED" << term::reset_sgr() << "." << std::endl\
+                << term::foreground(term::color::red) << "\t\tEXPECTED" << term::reset_sgr() <<  ": " << expect__ << std::endl\
+                << term::foreground(term::color::red) << "\t\tGOT     " << term::reset_sgr()  << ":  " << result__ << std::endl;\
+        }\
     } while(false)
