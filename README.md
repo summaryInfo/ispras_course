@@ -3,7 +3,7 @@ Super safe stack implementation
 
 ## Description
 
-This is an implementation of safe error-checking stack usgin:
+This is an implementation of safe error-checking stack using:
 
 * crc32 check sums
 * Memory protection
