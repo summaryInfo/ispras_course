@@ -26,7 +26,7 @@ static pthread_rwlock_t mtx = PTHREAD_RWLOCK_INITIALIZER;
 // Jump buffer and saved signal handlers for
 // SEGV handling
 _Thread_local static struct sigaction old_sigbus, old_sigsegv;
-static jmp_buf savepoint;
+_Thread_local static jmp_buf savepoint;
 
 // Round to the power of 2 not less than x
 inline static long round2pow(long x) {
