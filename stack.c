@@ -213,7 +213,7 @@ e_stack_early:
     return NULL;
 }
 
-long stack_free__(void ** stk) {
+long stack_free__(void **stk) {
     // We can free stack only if we have exclusive
     // access to the stack
     if (stack_lock_write__(stk, 0) < 0) return -1;
