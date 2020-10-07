@@ -64,6 +64,7 @@ static void handle_fault(int code) {
 }
 
 static int checked_start(void) {
+    // Intercept signals
     sigaction(SIGBUS, &(struct sigaction){ .sa_handler = handle_fault }, &old_sigbus);
     sigaction(SIGSEGV, &(struct sigaction){ .sa_handler = handle_fault }, &old_sigsegv);
     return setjmp(savepoint);
@@ -220,7 +221,6 @@ long stack_free__(void **stk) {
 
     long res = 0;
 
-    // Intercept signals
     struct generic_stack *stack = stack_ptr(*stk);
     if (munmap(stack, stack->size)) res = -1;
 
