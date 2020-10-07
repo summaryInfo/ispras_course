@@ -18,19 +18,19 @@ int main(void) {
     struct stack_int stk = create_stack_int(0);
     if (!stk.data) return EXIT_FAILURE;
 
-	for (;;) {
-    	char cmd = 0;
-    	int data = 0;
-        if (scanf(" %i", &data) == 1) {
-        	stack_push_int(&stk, &data);
-    	} else if (scanf(" %c", &cmd) == 1) {
-        	switch(cmd) {
+    for (int data = 0, res; (res = scanf(" %i", &data)) != EOF;) {
+        char cmd = 0;
+
+        if (res == 1) {
+            stack_push_int(&stk, &data);
+        } else if (scanf(" %c", &cmd) == 1) {
+            switch(cmd) {
             case 'q' /* quit */:
-            	return 0;
+                goto free_and_exit;
             case 'd' /* dup */:
                 data = stack_top_int(&stk);
-            	stack_push_int(&stk, &data);
-            	break;
+                stack_push_int(&stk, &data);
+                break;
             case 'p' /* pop */:
                 printf("dropped = %d\n", stack_pop_int(&stk));
                 break;
@@ -45,9 +45,13 @@ int main(void) {
                 /* fallthrough */
             case 'h':
                 print_help();
-        	}
-    	}
-	}
+            }
+        }
+    }
 
-	return EXIT_SUCCESS;
+free_and_exit:
+    free_stack_int(&stk);
+    return EXIT_SUCCESS;
+
+    /* unreachable */
 }
