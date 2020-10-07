@@ -222,10 +222,8 @@ long stack_free__(void ** stk) {
     long res = 0;
 
     // Intercept signals
-    if (!checked_start()) {
-        struct generic_stack *stack = stack_ptr(*stk);
-        if (munmap(stack, stack->size)) res = -1;
-    } else res = -1;
+    struct generic_stack *stack = stack_ptr(*stk);
+    if (munmap(stack, stack->size)) res = -1;
 
     checked_end();
     pthread_rwlock_unlock(&mtx);
