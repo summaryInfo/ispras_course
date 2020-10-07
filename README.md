@@ -22,7 +22,7 @@ To compile program:
 
     make
 
-To run (interacting):
+To run (interactive):
 
     make run
 
