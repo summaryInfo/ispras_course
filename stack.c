@@ -130,7 +130,6 @@ long stack_lock_write__(void **stk, long elem_size) {
 
 e_restore:
     mprotect(stack_ptr(*stk), stack->caps, PROT_READ);
-    *stk = NULL;
 
 e_restore_after_fault:
     checked_end();
