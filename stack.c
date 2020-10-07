@@ -23,8 +23,9 @@ struct generic_stack {
 // but leads to worse perforemance
 static pthread_rwlock_t mtx = PTHREAD_RWLOCK_INITIALIZER;
 
-// Jump buffer and saved signal handlers for
-// SEGV handling
+// Jump buffer and saved signal handlers for SEGV handling
+// They are thread local because multiple threads can have simultanious
+// access to the stack in read-only mode
 _Thread_local static struct sigaction old_sigbus, old_sigsegv;
 _Thread_local static jmp_buf savepoint;
 
