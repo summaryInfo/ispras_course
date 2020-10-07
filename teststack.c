@@ -32,7 +32,7 @@ int main(void) {
             	stack_push_int(&stk, &data);
             	break;
             case 'p' /* pop */:
-                stack_pop_int(&stk);
+                printf("dropped = %d\n", stack_pop_int(&stk));
                 break;
             case 's' /* size */:
                 printf("size = %ld\n", stack_size_int(&stk));

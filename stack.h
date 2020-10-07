@@ -138,16 +138,21 @@ inline static void STACK_TEMPLATE__(stack_push, STACK_NAME)(struct STACK_TEMPLAT
 }
 
 /**
- * @function void stack_pop_T(struct stack_T stack)
+ * @function void T stack_pop_T(struct stack_T stack)
  *
  * Pop value from the stack
  *
  * @param[inout] stack stack object
+ * @return dropped element
+ *
  * @note aborts if inconsistency detected
  */
-inline static void STACK_TEMPLATE__(stack_pop, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack) {
-    ASSERT(stack_lock_write__((void **)&stack->data, -sizeof(ELEMENT_TYPE)) >= 0);
+inline static ELEMENT_TYPE STACK_TEMPLATE__(stack_pop, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack) {
+    long size = stack_lock_write__((void**)&stack->data, -sizeof(ELEMENT_TYPE));
+    ASSERT(size >= 0);
+    ELEMENT_TYPE value = stack->data[size / sizeof(ELEMENT_TYPE) - 1];
     ASSERT(stack_unlock_write__((void **)&stack->data) >= 0);
+    return value;
 }
 
 #undef ELEMENT_TYPE
