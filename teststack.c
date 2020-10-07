@@ -52,6 +52,4 @@ int main(void) {
 free_and_exit:
     free_stack_int(&stk);
     return EXIT_SUCCESS;
-
-    /* unreachable */
 }
