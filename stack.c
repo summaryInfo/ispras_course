@@ -86,8 +86,6 @@ static _Bool stack_check(void **stk) {
 
     struct generic_stack *stack = stack_ptr(*stk);
 
-
-
     // Size is non-negative
     if (stack->size < (long)sizeof *stack) return 0;
     // Size cannot be more than capacity
@@ -108,8 +106,7 @@ static _Bool stack_check(void **stk) {
 
 long stack_lock_write__(void **stk, long elem_size) {
     if (pthread_rwlock_wrlock(&mtx)) return -1;
-    if (checked_start()) goto e_restore_after_fault;
-    if (!stack_check(stk)) goto e_restore_after_fault;
+    if (checked_start() || !stack_check(stk)) goto e_restore_after_fault;
 
     struct generic_stack *stack = stack_ptr(*stk);
 
@@ -132,8 +129,8 @@ long stack_lock_write__(void **stk, long elem_size) {
     return sz;
 
 e_restore:
+    mprotect(stack_ptr(*stk), stack->caps, PROT_READ);
     *stk = NULL;
-    munmap(stack_ptr(*stk), stack->caps);
 
 e_restore_after_fault:
     checked_end();
