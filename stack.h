@@ -51,7 +51,7 @@
 
 #define STACK_CAT__(name, type) name##_##type
 #define STACK_TEMPLATE__(name, type) STACK_CAT__(name, type)
-#define ASSERT(x) ((void)((x) || (__assert_fail(#x, __FILE__, __LINE__, __func__), 0)))
+#define ASSERT__(x) ((void)((x) || (__assert_fail(#x, __FILE__, __LINE__, __func__), 0)))
 
 /* Internal functions implemented elsewhere */
 extern long stack_lock_write__(void **, long);
@@ -87,7 +87,7 @@ inline static struct STACK_TEMPLATE__(stack, ELEMENT_TYPE) STACK_TEMPLATE__(crea
 
 /* Free stack */
 inline static void STACK_TEMPLATE__(free_stack, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack) {
-    ASSERT(stack_free__((void**)&stack->data) >= 0);
+    ASSERT__(stack_free__((void**)&stack->data) >= 0);
 }
 
 /**
@@ -99,9 +99,9 @@ inline static void STACK_TEMPLATE__(free_stack, STACK_NAME)(struct STACK_TEMPLAT
  */
 inline static ELEMENT_TYPE STACK_TEMPLATE__(stack_top, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack) {
     long size = stack_lock__((void**)&stack->data);
-    ASSERT(size > 0);
+    ASSERT__(size > 0);
     ELEMENT_TYPE value = stack->data[size / sizeof(ELEMENT_TYPE) - 1];
-    ASSERT(stack_unlock__((void**)&stack->data) >= 0);
+    ASSERT__(stack_unlock__((void**)&stack->data) >= 0);
     return value;
 }
 
@@ -114,8 +114,8 @@ inline static ELEMENT_TYPE STACK_TEMPLATE__(stack_top, STACK_NAME)(struct STACK_
  */
 inline static long STACK_TEMPLATE__(stack_size, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack) {
     long size = stack_lock__((void**)&stack->data);
-    ASSERT(size >= 0);
-    ASSERT(stack_unlock__((void**)&stack->data) >= 0);
+    ASSERT__(size >= 0);
+    ASSERT__(stack_unlock__((void**)&stack->data) >= 0);
     return size / sizeof(ELEMENT_TYPE);
 }
 
@@ -132,9 +132,9 @@ inline static long STACK_TEMPLATE__(stack_size, STACK_NAME)(struct STACK_TEMPLAT
  */
 inline static void STACK_TEMPLATE__(stack_push, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack, ELEMENT_TYPE *value) {
     long size = stack_lock_write__((void**)&stack->data, sizeof(STACK_NAME));
-    ASSERT(size >= 0);
+    ASSERT__(size >= 0);
     stack->data[size / sizeof(ELEMENT_TYPE)] = *value;
-    ASSERT(stack_unlock_write__((void **)&stack->data) >= 0);
+    ASSERT__(stack_unlock_write__((void **)&stack->data) >= 0);
 }
 
 /**
@@ -149,9 +149,9 @@ inline static void STACK_TEMPLATE__(stack_push, STACK_NAME)(struct STACK_TEMPLAT
  */
 inline static ELEMENT_TYPE STACK_TEMPLATE__(stack_pop, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack) {
     long size = stack_lock_write__((void**)&stack->data, -sizeof(ELEMENT_TYPE));
-    ASSERT(size >= 0);
+    ASSERT__(size >= 0);
     ELEMENT_TYPE value = stack->data[size / sizeof(ELEMENT_TYPE) - 1];
-    ASSERT(stack_unlock_write__((void **)&stack->data) >= 0);
+    ASSERT__(stack_unlock_write__((void **)&stack->data) >= 0);
     return value;
 }
 
@@ -159,4 +159,4 @@ inline static ELEMENT_TYPE STACK_TEMPLATE__(stack_pop, STACK_NAME)(struct STACK_
 #undef STACK_NAME
 #undef STACK_CAT__
 #undef STACK_TEMPLATE__
-#undef ASSERT
+#undef ASSERT__
