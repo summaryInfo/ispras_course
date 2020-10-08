@@ -68,7 +68,7 @@ extern long stack_lock__(void **);
 extern long stack_unlock__(void **);
 extern long stack_unlock__(void **);
 extern long stack_free__(void **);
-extern void *stack_alloc__(long);
+extern void *stack_alloc__(long, const char *, const char *, int);
 _Noreturn extern void stack_assert_fail__(void **, const char *, const char *, int, const char *);
 
 /**
@@ -91,8 +91,14 @@ struct STACK_TEMPLATE__(stack, STACK_NAME) {
  * @note returns NULL stack on failure
  */
 inline static struct STACK_TEMPLATE__(stack, ELEMENT_TYPE) STACK_TEMPLATE__(create_stack, STACK_NAME)(long init_caps) {
-    return (struct STACK_TEMPLATE__(stack, ELEMENT_TYPE)){ stack_alloc__(sizeof(ELEMENT_TYPE)*init_caps)};
+    return (struct STACK_TEMPLATE__(stack, ELEMENT_TYPE)){ stack_alloc__(sizeof(ELEMENT_TYPE)*init_caps, "<unknown>", "<unknown>", 0) };
 }
+
+/**
+ * Declare new stack variable
+ */
+#define DECLARE_STACK(name, type, postf, init_caps) struct STACK_TEMPLATE__(stack, postf) name =\
+    { stack_alloc__(sizeof(type)*init_caps, "struct stack_" # postf " " # name,  __FILE__, __LINE__) }
 
 /* Free stack */
 inline static void STACK_TEMPLATE__(free_stack, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack) {
@@ -175,8 +181,7 @@ inline static ELEMENT_TYPE STACK_TEMPLATE__(stack_pop, STACK_NAME)(struct STACK_
 
 void stack_set_logfile(FILE *file);
 
-#undef STACK_TEMPLATE__
-#undef STACK_CAT__
+#undef SILENT_WITH_DEFAULT
 #undef ELEMENT_TYPE
 #undef STACK_NAME
 #undef ASSERT__

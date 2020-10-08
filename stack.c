@@ -22,6 +22,12 @@
 #define BYTES_PER_LINE 8
 
 struct generic_stack {
+#ifndef NDEBUG
+    const char *stack_decl;
+    const char *stack_file;
+    int stack_line;
+#endif
+
     unsigned long hash;
     long size;
     long caps;
@@ -210,7 +216,7 @@ long stack_unlock__(void **stk) {
     return res;
 }
 
-void *stack_alloc__(long caps) {
+void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     if (caps < 0) return NULL;
 
     caps += sizeof(struct generic_stack);
@@ -236,6 +242,12 @@ void *stack_alloc__(long caps) {
     stack->caps = caps;
     stack->size = sizeof *stack;
     stack->hash = crc(stack);
+
+#ifndef NDEBUG
+    stack->stack_decl = decl;
+    stack->stack_file = file;
+    stack->stack_line = line;
+#endif
 
     // Make stack memory read-only
     if (mprotect(stack, stack->caps, PROT_READ)) goto e_stack;
@@ -292,8 +304,12 @@ _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *fi
         // At this point we don't even know element size
         // so just hexdump
 
-        fprintf(logfile, "struct stack {\n");
         struct generic_stack *stack = stack_ptr(*stk);
+#ifndef NDEBUG
+        fprintf(logfile, "Stack defined at %s:%d as\n%s = {\n", stack->stack_file, stack->stack_line, stack->stack_decl);
+#else
+        fprintf(logfile, "struct stack stk = {\n", stack->stack_decl);
+#endif
         fprintf(logfile, "\thash = 0x%016lX\n", stack->hash);
         fprintf(logfile, "\tsize = %ld\n", stack->size);
         fprintf(logfile, "\tcaps = %ld\n", stack->caps);

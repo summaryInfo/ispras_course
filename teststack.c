@@ -29,7 +29,7 @@ static void print_help(void) {
 }
 
 int main(void) {
-    struct stack_int stk = STACK_TEMPLATE__(create_stack,STACK_NAME)(0);
+    DECLARE_STACK(stk, int, int, 0);
     if (!stk.data) return EXIT_FAILURE;
 
     ELEMENT_TYPE data = ELEMENT_TYPE_DEFAULT;
