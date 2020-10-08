@@ -33,7 +33,7 @@ unlocking memory for writing from outside of internal functions.
 
 No tests this time, since it would simplify attempts to break the stack.
 
-To compile stack without advanced debugginh use:
+To compile stack without advanced debugging use:
 
     NDEBUG=1 make
 
