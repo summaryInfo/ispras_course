@@ -5,10 +5,6 @@
 //#define SILENT_WITH_DEFAULT 0
 #include "stack.h"
 
-// These macros are internal and are not supporsed to be
-// exported from stack.h so redefine them
-#define STACK_CAT__(name, type) name##_##type
-#define STACK_TEMPLATE__(name, type) STACK_CAT__(name, type)
 // Element type is undefined in stack.h
 // for security reasons
 #define ELEMENT_TYPE int
