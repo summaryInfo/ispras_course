@@ -34,6 +34,10 @@ inline static long round2pow(long x) {
     return 1L << (CHAR_BIT * sizeof(long) - __builtin_clzl(x) - 1 + !!(x & (x - 1)));
 }
 
+
+// Calculate crc32 or crc64-ecma depending on address size
+#define CRC_CONSTANT (sizeof(unsigned long) == 8 ? 0xEDB88320 : 0xC96C5795D7870F42ULL)
+
 // Calculate crc32/crc64 check sum of the stack (excluding hash field itself)
 static unsigned long crc(struct generic_stack *stk) {
     uint8_t *dstart = (uint8_t *)stk + offsetof(struct generic_stack, size);
@@ -41,13 +45,8 @@ static unsigned long crc(struct generic_stack *stk) {
     unsigned long crc = -1ULL;
 
     while (dstart < dend) {
-        uint8_t byte = *dstart++;
-        for(unsigned long j = 0; j < CHAR_BIT; j++, byte >>= 1) {
-            _Bool bit = (byte ^ crc) & 1;
-            crc >>= 1;
-            // Calculate crc32 or crc64-ecma depending on address size
-            crc ^= (sizeof(unsigned long) == 8 ? 0xEDB88320 : 0xC96C5795D7870F42ULL) * bit;
-        }
+        for(uint8_t byte = *dstart++, j = 0; j < CHAR_BIT; j++, byte >>= 1)
+            crc = (crc >> 1) ^ (CRC_CONSTANT * ((byte ^ crc) & 1));
     }
     return ~crc;
 }
