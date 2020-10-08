@@ -263,7 +263,7 @@ _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *fi
         // so just hexdump
 
         fprintf(logfile, "struct stack {\n");
-        struct generic_stack *stack = stack_ptr(stk);
+        struct generic_stack *stack = stack_ptr(*stk);
         fprintf(logfile, "\thash = 0x%016lX\n", stack->hash);
         fprintf(logfile, "\tsize = %ld\n", stack->size);
         fprintf(logfile, "\tcaps = %ld\n", stack->caps);
