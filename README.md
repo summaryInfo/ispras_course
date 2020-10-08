@@ -33,4 +33,8 @@ unlocking memory for writing from outside of internal functions.
 
 No tests this time, since it would simplify attempts to break the stack.
 
+To compile stack without advanced debugginh use:
+
+    NDEBUG=1 make
+
 This needs to be compiled in UNIX-like environment.
