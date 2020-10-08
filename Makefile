@@ -1,4 +1,5 @@
 CFLAGS += -std=c11 -Wall -Wextra -Wpedantic
+LDFLAGS += -pthread
 PROG := teststack
 OBJS := stack.o teststack.o
 
