@@ -1,4 +1,4 @@
-CFLAGS += -std=c11 -Wall -Wextra -Wpedantic
+CFLAGS += -std=c11 -Wall -Wextra -Wpedantic -fstack-protector-strong -fPIC
 LDFLAGS += -pthread
 PROG := teststack
 OBJS := stack.o teststack.o
