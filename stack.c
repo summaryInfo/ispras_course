@@ -12,6 +12,9 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+// If this is defined stack will consider it to be poisonous
+#define MAGIC_FAILURE 0xFA11ED66
+
 #define STACK_SIZE_STEP(x) ((x)*2)
 #define STACK_INIT_SIZE (sysconf(_SC_PAGE_SIZE))
 
@@ -116,6 +119,15 @@ static _Bool stack_check(void **stk) {
 
     // Hash cannot be changed
     if (stack->hash != hash) return 0;
+
+#ifdef MAGIC_FAILURE
+    // Search for poison
+    const uint32_t *end = (uint32_t *)stack->data + (stack->size - sizeof(*stack) + sizeof(uint32_t) - 1)/sizeof(uint32_t);
+    for (const uint32_t *p = (uint32_t *)stack->data; p < end; p++) {
+        if (*p == MAGIC_FAILURE) return 0;
+    }
+#endif
+
     return 1;
 }
 
@@ -135,6 +147,15 @@ long stack_lock_write__(void **stk, long elem_size) {
         void *res = mremap(stack, stack->caps, newsz, PROT_READ | PROT_WRITE);
         if (res == MAP_FAILED) goto e_restore;
 
+        stack = res;
+        stack->caps = newsz;
+
+#ifdef MAGIC_FAILURE
+        long i = (stack->size + sizeof(uint32_t) - 1) / sizeof(uint32_t);
+        for (; i < newsz/(long)sizeof(uint32_t); i++) {
+            ((uint32_t*)stack)[i] = MAGIC_FAILURE;
+        }
+#endif
         // TODO Add new stack address to ebpf map
     }
 
@@ -203,6 +224,12 @@ void *stack_alloc__(long caps) {
 
     struct generic_stack *stack = mmap(NULL, caps, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, 0, 0);
     if (stack == MAP_FAILED) goto e_stack;
+
+#ifdef MAGIC_FAILURE
+     for (long i = 0; i < caps/4; i++) {
+         ((uint32_t*)stack)[i] = MAGIC_FAILURE;
+     }
+#endif
 
     // Initialize stack metadata
     // All memory in stack is zeroed because it is mmaped
