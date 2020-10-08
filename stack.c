@@ -7,9 +7,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #define STACK_SIZE_STEP(x) ((x)*2)
-#define STACK_INIT_SIZE (PAGE_SIZE)
+#define STACK_INIT_SIZE (sysconf(_SC_PAGE_SIZE))
 
 struct generic_stack {
     unsigned long hash;
@@ -77,12 +78,12 @@ static void checked_end(void) {
 static _Bool stack_check(void **stk) {
     // TODO Filter mprotects
 
-    if ((uintptr_t)stk < PAGE_SIZE) return 0;
+    if ((uintptr_t)stk < (uintptr_t)sysconf(_SC_PAGE_SIZE)) return 0;
     if ((uintptr_t)stk % sizeof(void *)) return 0;
 
     // Check pointer alignment (it is mmaped)
     // (pointer to data is passed here)
-    if ((uintptr_t)*stk % PAGE_SIZE != sizeof(struct generic_stack)) return 0;
+    if ((uintptr_t)*stk % sysconf(_SC_PAGE_SIZE) != sizeof(struct generic_stack)) return 0;
 
     struct generic_stack *stack = stack_ptr(*stk);
 
