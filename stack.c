@@ -66,7 +66,7 @@ inline static struct generic_stack *stack_ptr(void *stk) {
 }
 
 static void handle_fault(int code) {
-    longjmp(savepoint, 1);
+    siglongjmp(savepoint, 1);
     (void)code;
 }
 
@@ -81,7 +81,7 @@ static int checked_start(void) {
     sigaddset(&signals, SIGBUS);
     pthread_sigmask(SIG_UNBLOCK, &signals, &oldsigset);
 
-    return setjmp(savepoint);
+    return sigsetjmp(savepoint, 1);
 }
 
 static void checked_end(void) {
