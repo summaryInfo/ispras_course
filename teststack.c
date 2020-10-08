@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #define ELEMENT_TYPE int
-#define SILENT_WITH_DEFAULT 0
+//#define SILENT_WITH_DEFAULT 0
 #include "stack.h"
 
 // These macros are internal and are not supporsed to be

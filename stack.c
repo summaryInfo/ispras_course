@@ -1,16 +1,21 @@
 #define _GNU_SOURCE
 
+#include <assert.h>
 #include <limits.h>
 #include <pthread.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
 #define STACK_SIZE_STEP(x) ((x)*2)
 #define STACK_INIT_SIZE (sysconf(_SC_PAGE_SIZE))
+
+// Debug output width
+#define BYTES_PER_LINE 8
 
 struct generic_stack {
     unsigned long hash;
@@ -28,7 +33,9 @@ static pthread_rwlock_t mtx = PTHREAD_RWLOCK_INITIALIZER;
 // They are thread local because multiple threads can have simultanious
 // access to the stack in read-only mode
 _Thread_local static struct sigaction old_sigbus, old_sigsegv;
+_Thread_local static sigset_t oldsigset;
 _Thread_local static jmp_buf savepoint;
+
 
 // Round to the power of 2 not less than x
 inline static long round2pow(long x) {
@@ -67,12 +74,20 @@ static int checked_start(void) {
     // Intercept signals
     sigaction(SIGBUS, &(struct sigaction){ .sa_handler = handle_fault }, &old_sigbus);
     sigaction(SIGSEGV, &(struct sigaction){ .sa_handler = handle_fault }, &old_sigsegv);
+
+    sigset_t signals;
+    sigemptyset(&signals);
+    sigaddset(&signals, SIGSEGV);
+    sigaddset(&signals, SIGBUS);
+    pthread_sigmask(SIG_UNBLOCK, &signals, &oldsigset);
+
     return setjmp(savepoint);
 }
 
 static void checked_end(void) {
     sigaction(SIGBUS, &old_sigbus, NULL);
     sigaction(SIGSEGV, &old_sigsegv, NULL);
+    pthread_sigmask(SIG_UNBLOCK, &oldsigset, NULL);
 }
 
 static _Bool stack_check(void **stk) {
@@ -229,7 +244,47 @@ long stack_free__(void **stk) {
     return res;
 }
 
-static __attribute__((constructor)) void init_ebpf(void) {
+static FILE *logfile;
+
+void stack_set_logfile(FILE *file) {
+    if (logfile != stderr && logfile) fclose(logfile);
+    logfile = file;
+}
+
+_Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *file, int line, const char *func) {
+    if (checked_start()) {
+        if (logfile) fprintf(logfile, "\nStack dump failed with SIGSEGV\n");
+        __assert_fail(expr, file, line, func);
+    }
+
+    if (logfile) {
+
+        // At this point we don't even know element size
+        // so just hexdump
+
+        fprintf(logfile, "struct stack {\n");
+        struct generic_stack *stack = stack_ptr(stk);
+        fprintf(logfile, "\thash = 0x%016lX\n", stack->hash);
+        fprintf(logfile, "\tsize = %ld\n", stack->size);
+        fprintf(logfile, "\tcaps = %ld\n", stack->caps);
+        fprintf(logfile, "\tdata = (uint8_t[]){\n");
+        for (long i = (long)sizeof(*stack); i < stack->size;) {
+            fprintf(logfile, "\t\t[0x%08lX] = ", i - sizeof(*stack));
+            for (long j = 0; i < stack->size && j < BYTES_PER_LINE; j++, i++) {
+                fprintf(logfile, "0x%02X, ", stack->data[i - sizeof(*stack)]);
+            }
+            fprintf(logfile, "\n");
+        }
+        fprintf(logfile, "\t}\n}\n");
+    }
+
+    checked_end();
+    __assert_fail(expr, file, line, func);
+}
+
+static __attribute__((constructor)) void init_stack(void) {
+    logfile = stderr;
+
     // TODO Init seccomp ebpf filter
 }
 
