@@ -246,8 +246,11 @@ long stack_free__(void **stk) {
 static FILE *logfile;
 
 void stack_set_logfile(FILE *file) {
-    if (logfile != stderr && logfile) fclose(logfile);
-    logfile = file;
+    if (logfile != file) {
+        if (logfile != stderr && logfile) fclose(logfile);
+        logfile = file;
+        setvbuf(logfile, NULL, _IONBF, BUFSIZ);
+    }
 }
 
 _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *file, int line, const char *func) {
