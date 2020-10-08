@@ -9,8 +9,8 @@
 // for security reasons
 #define ELEMENT_TYPE int
 #define STACK_NAME int
-#define ELEMENT_TYPE_DEFAULT 0
 
+#define ELEMENT_TYPE_DEFAULT 0
 #define PRI_STACK "i"
 #define SCN_STACK "i"
 
