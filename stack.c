@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -70,7 +71,7 @@ static void handle_fault(int code) {
     (void)code;
 }
 
-static int checked_start(void) {
+static void checked_start(void) {
     // Intercept signals
     sigaction(SIGBUS, &(struct sigaction){ .sa_handler = handle_fault }, &old_sigbus);
     sigaction(SIGSEGV, &(struct sigaction){ .sa_handler = handle_fault }, &old_sigsegv);
@@ -80,8 +81,6 @@ static int checked_start(void) {
     sigaddset(&signals, SIGSEGV);
     sigaddset(&signals, SIGBUS);
     pthread_sigmask(SIG_UNBLOCK, &signals, &oldsigset);
-
-    return sigsetjmp(savepoint, 1);
 }
 
 static void checked_end(void) {
@@ -122,7 +121,7 @@ static _Bool stack_check(void **stk) {
 
 long stack_lock_write__(void **stk, long elem_size) {
     if (pthread_rwlock_wrlock(&mtx)) return -1;
-    if (checked_start() || !stack_check(stk)) goto e_restore_after_fault;
+    if ((checked_start(), sigsetjmp(savepoint, 1))  || !stack_check(stk)) goto e_restore_after_fault;
 
     struct generic_stack *stack = stack_ptr(*stk);
 
@@ -173,7 +172,7 @@ long stack_unlock_write__(void **stk) {
 
 long stack_lock__(void **stk) {
     if (pthread_rwlock_rdlock(&mtx)) return -1;
-    if (checked_start() || !stack_check(stk)) {
+    if ((checked_start(), sigsetjmp(savepoint, 1)) || !stack_check(stk)) {
         checked_end();
         pthread_rwlock_unlock(&mtx);
         return -1;
@@ -200,7 +199,7 @@ void *stack_alloc__(long caps) {
     // Overflow
     if (caps < 0) return NULL;
 
-    if (checked_start()) goto e_stack_early;
+    if (checked_start(), sigsetjmp(savepoint, 1)) goto e_stack_early;
 
     struct generic_stack *stack = mmap(NULL, caps, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, 0, 0);
     if (stack == MAP_FAILED) goto e_stack;
@@ -252,7 +251,8 @@ void stack_set_logfile(FILE *file) {
 }
 
 _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *file, int line, const char *func) {
-    if (checked_start()) {
+    if (checked_start(), sigsetjmp(savepoint, 1)) {
+        checked_end();
         if (logfile) fprintf(logfile, "\nStack dump failed with SIGSEGV\n");
         __assert_fail(expr, file, line, func);
     }
