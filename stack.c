@@ -249,6 +249,10 @@ void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     stack->stack_decl = decl;
     stack->stack_file = file;
     stack->stack_line = line;
+#else
+    (void)decl;
+    (void)file;
+    (void)line;
 #endif
 
     // Make stack memory read-only
@@ -310,7 +314,7 @@ _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *fi
 #ifndef NDEBUG
         fprintf(logfile, "Stack defined at %s:%d as\n%s = {\n", stack->stack_file, stack->stack_line, stack->stack_decl);
 #else
-        fprintf(logfile, "struct stack stk = {\n", stack->stack_decl);
+        fprintf(logfile, "struct stack stk = {\n");
 #endif
         fprintf(logfile, "\thash = 0x%016lX\n", stack->hash);
         fprintf(logfile, "\tsize = %ld\n", stack->size);
