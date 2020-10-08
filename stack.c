@@ -12,8 +12,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#ifndef NDEBUG
 // If this is defined stack will consider it to be poisonous
-#define MAGIC_FAILURE 0xFA11ED66
+#    define MAGIC_FAILURE 0xFA11ED66
+#endif
 
 #define STACK_SIZE_STEP(x) ((x)*2)
 #define STACK_INIT_SIZE (sysconf(_SC_PAGE_SIZE))
