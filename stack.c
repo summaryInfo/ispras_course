@@ -24,15 +24,14 @@
 #define BYTES_PER_LINE 8
 
 struct generic_stack {
-#ifndef NDEBUG
-    const char *stack_decl;
-    const char *stack_file;
-    int stack_line;
-#endif
-
     unsigned long hash;
     long size;
     long caps;
+#ifndef NDEBUG
+    int stack_line;
+    const char *stack_decl;
+    const char *stack_file;
+#endif
     uint8_t data[];
 };
 
@@ -56,7 +55,7 @@ inline static long round2pow(long x) {
 
 
 // Calculate crc32 or crc64-ecma depending on address size
-#define CRC_CONSTANT (sizeof(unsigned long) == 8 ? 0xEDB88320 : 0xC96C5795D7870F42ULL)
+#define CRC_CONSTANT (sizeof(unsigned long) == 4 ? 0xEDB88320 : 0xC96C5795D7870F42ULL)
 
 // Calculate crc32/crc64 check sum of the stack (excluding hash field itself)
 static unsigned long crc(struct generic_stack *stk) {
@@ -243,7 +242,6 @@ void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     // All memory in stack is zeroed because it is mmaped
     stack->caps = caps;
     stack->size = sizeof *stack;
-    stack->hash = crc(stack);
 
 #ifndef NDEBUG
     stack->stack_decl = decl;
@@ -254,6 +252,8 @@ void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     (void)file;
     (void)line;
 #endif
+
+    stack->hash = crc(stack);
 
     // Make stack memory read-only
     if (mprotect(stack, stack->caps, PROT_READ)) goto e_stack;
