@@ -10,6 +10,9 @@ This is an implementation of safe error-checking stack using:
 * Opaque implementation
 * Thread safety
 * Memory issues control
+* Stack dumping
+* Stack canaries
+* Poison checking
 
 ## Dependencies
 
