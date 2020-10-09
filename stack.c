@@ -82,6 +82,12 @@ inline static long *canary1_ptr(struct generic_stack *stack) {
     return ((long *)((uint8_t *)stack + stack->caps)) - 1;
 }
 
+inline static void setup_canaries(struct generic_stack *stack) {
+    long canary = rand();
+    if (sizeof(long) == 8) canary |= (long)rand() << 32;
+    *canary1_ptr(stack) = stack->canary0 = canary;
+}
+
 static void handle_fault(int code) {
     siglongjmp(savepoint, 1);
     (void)code;
@@ -174,7 +180,7 @@ long stack_lock_write__(void **stk, long elem_size) {
 #endif
 
         // Setup canaries
-        *canary1_ptr(stack) = stack->canary0 = rand();
+        setup_canaries(stack);
 
         // TODO Add new stack address to ebpf map
     }
@@ -257,7 +263,7 @@ void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     stack->size = sizeof *stack;
 
     // Setup canaries
-    *canary1_ptr(stack) = stack->canary0 = rand();
+    setup_canaries(stack);
 
 #ifndef NDEBUG
     stack->stack_decl = decl;
