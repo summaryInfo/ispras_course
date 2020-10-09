@@ -32,7 +32,9 @@ struct generic_stack {
     const char *stack_decl;
     const char *stack_file;
 #endif
+    long canary0;
     uint8_t data[];
+    /* long canary1; */
 };
 
 // Use one global mutex for all stacks
@@ -74,6 +76,10 @@ inline static struct generic_stack *stack_ptr(void *stk) {
     // Pointer to data field of stack is passed from user
     // And we want pointer to the start of the generic_stack
     return  (struct generic_stack *)((uint8_t *)stk - sizeof(struct generic_stack));
+}
+
+inline static long *canary1_ptr(struct generic_stack *stack) {
+    return ((long *)((uint8_t *)stack + stack->caps)) - 1;
 }
 
 static void handle_fault(int code) {
@@ -127,6 +133,9 @@ static _Bool stack_check(void **stk) {
     // Hash cannot be changed
     if (stack->hash != hash) return 0;
 
+    // Canaries should not change
+    if (*canary1_ptr(stack) != stack->canary0) return 0;
+
 #ifdef MAGIC_FAILURE
     // Search for poison
     const uint32_t *end = (uint32_t *)stack->data + (stack->size - sizeof(*stack) + sizeof(uint32_t) - 1)/sizeof(uint32_t);
@@ -148,7 +157,7 @@ long stack_lock_write__(void **stk, long elem_size) {
     mprotect(stack, stack->caps, PROT_READ | PROT_WRITE);
 
     // Adjust size if want to insert (elem_size is not 0)
-    if (stack->size + elem_size + (long)sizeof *stack > stack->caps) {
+    if (stack->size + elem_size + (long)(sizeof *stack + sizeof(long)) > stack->caps) {
         long newsz = STACK_SIZE_STEP(stack->caps);
         if (newsz < 0) goto e_restore;
         void *res = mremap(stack, stack->caps, newsz, PROT_READ | PROT_WRITE);
@@ -163,6 +172,10 @@ long stack_lock_write__(void **stk, long elem_size) {
             ((uint32_t*)stack)[i] = MAGIC_FAILURE;
         }
 #endif
+
+        // Setup canaries
+        *canary1_ptr(stack) = stack->canary0 = rand();
+
         // TODO Add new stack address to ebpf map
     }
 
@@ -220,7 +233,7 @@ long stack_unlock__(void **stk) {
 void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     if (caps < 0) return NULL;
 
-    caps += sizeof(struct generic_stack);
+    caps += sizeof(struct generic_stack) + sizeof(long);
     if (caps < STACK_INIT_SIZE) caps = STACK_INIT_SIZE;
     caps = round2pow(caps);
 
@@ -242,6 +255,9 @@ void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     // All memory in stack is zeroed because it is mmaped
     stack->caps = caps;
     stack->size = sizeof *stack;
+
+    // Setup canaries
+    *canary1_ptr(stack) = stack->canary0 = rand();
 
 #ifndef NDEBUG
     stack->stack_decl = decl;
@@ -319,6 +335,8 @@ _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *fi
         fprintf(logfile, "\thash = 0x%016lX\n", stack->hash);
         fprintf(logfile, "\tsize = %ld\n", stack->size);
         fprintf(logfile, "\tcaps = %ld\n", stack->caps);
+        fprintf(logfile, "\tcanary0 = 0x%016lX\n", stack->canary0);
+        fprintf(logfile, "\tcanary1 = 0x%016lX\n", *canary1_ptr(stack));
         fprintf(logfile, "\tdata = (uint8_t[]){\n");
         for (long i = (long)sizeof(*stack); i < stack->size;) {
             fprintf(logfile, "\t\t[0x%08lX] = ", i - sizeof(*stack));
@@ -336,6 +354,8 @@ _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *fi
 
 static __attribute__((constructor)) void init_stack(void) {
     logfile = stderr;
+
+    srand(time(NULL));
 
     // TODO Init seccomp ebpf filter
 }
