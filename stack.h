@@ -57,6 +57,7 @@
                                      /* V no brackets here to allow void */
 #define ASSERT__(s, x, r) if (!(x)) return r;
 #else
+#define SILENT_WITH_DEFAULT
 #define ASSERT__(s, x, r) ((void)((x) || (stack_assert_fail__((void**)&s->data, #x, __FILE__, __LINE__, __func__), 0)))
 #endif
 
