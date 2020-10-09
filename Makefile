@@ -6,7 +6,7 @@ OBJS := stack.o teststack.o
 ifdef NDEBUG
 CFLAGS += -DNDEBUG=$(NDEBUG)
 else
-CFLAGS += -g
+CFLAGS += -Og
 endif
 
 all: $(PROG)
