@@ -91,8 +91,8 @@ struct STACK_TEMPLATE__(stack, STACK_NAME) {
  *
  * @note returns NULL stack on failure
  */
-inline static struct STACK_TEMPLATE__(stack, ELEMENT_TYPE) STACK_TEMPLATE__(create_stack, STACK_NAME)(long init_caps) {
-    return (struct STACK_TEMPLATE__(stack, ELEMENT_TYPE)){ stack_alloc__(sizeof(ELEMENT_TYPE)*init_caps, "<unknown>", "<unknown>", 0) };
+inline static struct STACK_TEMPLATE__(stack, STACK_NAME) STACK_TEMPLATE__(create_stack, STACK_NAME)(long init_caps) {
+    return (struct STACK_TEMPLATE__(stack, STACK_NAME)){ stack_alloc__(sizeof(ELEMENT_TYPE)*init_caps, "<unknown>", "<unknown>", 0) };
 }
 
 /**
@@ -147,7 +147,7 @@ inline static long STACK_TEMPLATE__(stack_size, STACK_NAME)(struct STACK_TEMPLAT
  * @note aborts if inconsistency detected
  */
 inline static void STACK_TEMPLATE__(stack_push, STACK_NAME)(struct STACK_TEMPLATE__(stack, STACK_NAME) *stack, ELEMENT_TYPE *value) {
-    long size = stack_lock_write__((void**)&stack->data, sizeof(STACK_NAME));
+    long size = stack_lock_write__((void**)&stack->data, sizeof(ELEMENT_TYPE));
     ASSERT__(stack, size >= 0,);
     stack->data[size / sizeof(ELEMENT_TYPE)] = *value;
     ASSERT__(stack, stack_unlock_write__((void **)&stack->data) >= 0,);

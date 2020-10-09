@@ -2,14 +2,13 @@
 #include <stdlib.h>
 
 #define ELEMENT_TYPE int
+#define STACK_NAME i
 //#define SILENT_WITH_DEFAULT 0
 #include "stack.h"
 
 // Element type is undefined in stack.h
 // for security reasons
 #define ELEMENT_TYPE int
-#define STACK_NAME int
-
 #define ELEMENT_TYPE_DEFAULT 0
 #define PRI_STACK "i"
 #define SCN_STACK "i"
@@ -25,7 +24,7 @@ static void print_help(void) {
 }
 
 int main(void) {
-    DECLARE_STACK(stk, int, int, 0);
+    DECLARE_STACK(stk, int, i, 0);
     if (!stk.data) return EXIT_FAILURE;
 
     ELEMENT_TYPE data = ELEMENT_TYPE_DEFAULT;
@@ -33,23 +32,23 @@ int main(void) {
         char cmd = 0;
 
         if (res == 1) {
-            STACK_TEMPLATE__(stack_push, STACK_NAME)(&stk, &data);
+            stack_push_i(&stk, &data);
         } else if (scanf(" %c", &cmd) == 1) {
             switch(cmd) {
             case 'q' /* quit */:
                 goto free_and_exit;
             case 'd' /* dup */:
-                data = STACK_TEMPLATE__(stack_top, STACK_NAME)(&stk);
-                STACK_TEMPLATE__(stack_push, STACK_NAME)(&stk, &data);
+                data = stack_top_i(&stk);
+                stack_push_i(&stk, &data);
                 break;
             case 'p' /* pop */:
-                printf("dropped = %"PRI_STACK"\n", STACK_TEMPLATE__(stack_pop, STACK_NAME)(&stk));
+                printf("dropped = %"PRI_STACK"\n", stack_pop_i(&stk));
                 break;
             case 's' /* size */:
-                printf("size = %ld\n", STACK_TEMPLATE__(stack_size, STACK_NAME)(&stk));
+                printf("size = %ld\n", stack_size_i(&stk));
                 break;
             case 't' /* top */:
-                printf("top = %"PRI_STACK"\n", STACK_TEMPLATE__(stack_top, STACK_NAME)(&stk));
+                printf("top = %"PRI_STACK"\n", stack_top_i(&stk));
                 break;
             default:
                 printf("Unknown command\n");
@@ -61,6 +60,6 @@ int main(void) {
     }
 
 free_and_exit:
-    STACK_TEMPLATE__(free_stack, STACK_NAME)(&stk);
+    free_stack_i(&stk);
     return EXIT_SUCCESS;
 }
