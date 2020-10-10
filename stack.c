@@ -124,6 +124,10 @@ static _Bool stack_check(void **stk) {
 
     struct generic_stack *stack = stack_ptr(*stk);
 
+    // Canaries should not change
+    if (*canary1_ptr(stack) != stack->canary0) return 0;
+    if (*canary1_ptr(stack) != stack->canaryp) return 0;
+
     // Size is non-negative
     if (stack->size < (long)sizeof *stack) return 0;
     // Size cannot be more than capacity
@@ -139,10 +143,6 @@ static _Bool stack_check(void **stk) {
 
     // Hash cannot be changed
     if (stack->hash != hash) return 0;
-
-    // Canaries should not change
-    if (*canary1_ptr(stack) != stack->canary0) return 0;
-    if (*canary1_ptr(stack) != stack->canaryp) return 0;
 
 #ifdef MAGIC_FAILURE
     // Search for poison
