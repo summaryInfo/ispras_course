@@ -12,6 +12,16 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#ifndef MAGIC
+#	define MAGIC 5
+#endif
+
+#define STACK_CHECK (MAGIC > 0)
+#define STACK_CANARIES (MAGIC > 1)
+#define STACK_PROTECT (MAGIC > 2)
+#define STACK_HASHING (MAGIC > 3)
+#define STACK_POISON (MAGIC > 4)
+
 #ifndef NDEBUG
 // If this is defined stack will consider it to be poisonous
 #    define MAGIC_FAILURE 0xFA11ED66
@@ -24,8 +34,12 @@
 #define BYTES_PER_LINE 8
 
 struct generic_stack {
+#if STACK_CANARIES
     long canaryp;
+#endif
+#if STACK_HASHING
     unsigned long hash;
+#endif
     long size;
     long caps;
 #ifndef NDEBUG
@@ -33,7 +47,9 @@ struct generic_stack {
     const char *stack_decl;
     const char *stack_file;
 #endif
+#if STACK_CHECK
     long canary0;
+#endif
     uint8_t data[];
     /* long canary1; */
 };
@@ -43,12 +59,14 @@ struct generic_stack {
 // but leads to worse perforemance
 static pthread_rwlock_t mtx = PTHREAD_RWLOCK_INITIALIZER;
 
+#if STACK_CHECK
 // Jump buffer and saved signal handlers for SEGV handling
 // They are thread local because multiple threads can have simultanious
 // access to the stack in read-only mode
 _Thread_local static struct sigaction old_sigbus, old_sigsegv;
 _Thread_local static sigset_t oldsigset;
 _Thread_local static jmp_buf savepoint;
+#endif
 
 
 // Round to the power of 2 not less than x
@@ -56,6 +74,7 @@ inline static long round2pow(long x) {
     return 1L << (CHAR_BIT * sizeof(long) - __builtin_clzl(x) - 1 + !!(x & (x - 1)));
 }
 
+#if STACK_HASHING
 
 // Calculate crc32 or crc64-ecma depending on address size
 #define CRC_CONSTANT (sizeof(unsigned long) == 4 ? 0xEDB88320 : 0xC96C5795D7870F42ULL)
@@ -73,12 +92,15 @@ static unsigned long crc(struct generic_stack *stk) {
     return ~crc;
 }
 
+#endif
+
 inline static struct generic_stack *stack_ptr(void *stk) {
     // Pointer to data field of stack is passed from user
     // And we want pointer to the start of the generic_stack
     return  (struct generic_stack *)((uint8_t *)stk - sizeof(struct generic_stack));
 }
 
+#if STACK_CANARIES
 inline static long *canary1_ptr(struct generic_stack *stack) {
     return ((long *)((uint8_t *)stack + stack->caps)) - 1;
 }
@@ -88,6 +110,9 @@ inline static void setup_canaries(struct generic_stack *stack) {
     if (sizeof(long) == 8) canary |= (long)rand() << 32;
     *canary1_ptr(stack) = stack->canaryp = stack->canary0 = canary;
 }
+#endif
+
+#if STACK_CHECK
 
 static void handle_fault(int code) {
     siglongjmp(savepoint, 1);
@@ -124,9 +149,11 @@ static _Bool stack_check(void **stk) {
 
     struct generic_stack *stack = stack_ptr(*stk);
 
+#if STACK_CANARIES
     // Canaries should not change
     if (*canary1_ptr(stack) != stack->canary0) return 0;
     if (*canary1_ptr(stack) != stack->canaryp) return 0;
+#endif
 
     // Size is non-negative
     if (stack->size < (long)sizeof *stack) return 0;
@@ -137,14 +164,16 @@ static _Bool stack_check(void **stk) {
     // Stack capacity is a power of 2
     if ((stack->caps - 1) & stack->caps) return 0;
 
+#if STACK_HASHING
     // Calculate hash of the whole stack, not including
     // hash field itself
     unsigned long hash = crc(stack);
 
     // Hash cannot be changed
     if (stack->hash != hash) return 0;
+#endif
 
-#ifdef MAGIC_FAILURE
+#if STACK_POISON
     // Search for poison
     const uint32_t *end = (uint32_t *)stack->data + (stack->size - sizeof(*stack) + sizeof(uint32_t) - 1)/sizeof(uint32_t);
     for (const uint32_t *p = (uint32_t *)stack->data; p < end; p++) {
@@ -154,15 +183,20 @@ static _Bool stack_check(void **stk) {
 
     return 1;
 }
+#endif
 
 long stack_lock_write__(void **stk, long elem_size) {
     if (pthread_rwlock_wrlock(&mtx)) return -1;
+#if STACK_CHECK
     if ((checked_start(), sigsetjmp(savepoint, 1))  || !stack_check(stk)) goto e_restore_after_fault;
+#endif
 
     struct generic_stack *stack = stack_ptr(*stk);
 
+#if STACK_PROTECT
     // Unlock memory for writing
     mprotect(stack, stack->caps, PROT_READ | PROT_WRITE);
+#endif
 
     // Adjust size if want to insert (elem_size is not 0)
     if (stack->size + elem_size + (long)(sizeof *stack + sizeof(long)) > stack->caps) {
@@ -174,15 +208,16 @@ long stack_lock_write__(void **stk, long elem_size) {
         stack = res;
         stack->caps = newsz;
 
-#ifdef MAGIC_FAILURE
+#if STACK_POISON
         long i = (stack->size + sizeof(uint32_t) - 1) / sizeof(uint32_t);
         for (; i < newsz/(long)sizeof(uint32_t); i++) {
             ((uint32_t*)stack)[i] = MAGIC_FAILURE;
         }
 #endif
-
+#if STACK_CANARIES
         // Setup canaries
         setup_canaries(stack);
+#endif
 
         // TODO Add new stack address to ebpf map
     }
@@ -193,10 +228,14 @@ long stack_lock_write__(void **stk, long elem_size) {
     return sz;
 
 e_restore:
+#if STACK_PROTECT
     mprotect(stack_ptr(*stk), stack->caps, PROT_READ);
+#endif
 
 e_restore_after_fault:
+#if STACK_CHECK
     checked_end();
+#endif
     pthread_rwlock_unlock(&mtx);
     return -1;
 }
@@ -204,35 +243,49 @@ e_restore_after_fault:
 long stack_unlock_write__(void **stk) {
     struct generic_stack *stack = stack_ptr(*stk);
 
+#if STACK_HASHING
     // Rehash
     stack->hash = crc(stack);
+#endif
 
     long res = 0;
 
+#if STACK_PROTECT
     // Make memory read-only
     if (!mprotect(stack, stack->caps, PROT_READ)) {
+#endif
         res = -!stack_check(stk);
+#if STACK_PROTECT
     } else res = -1;
+#endif
 
+#if STACK_CHECK
     checked_end();
+#endif
     if (pthread_rwlock_unlock(&mtx)) return -1;
     return res;
 }
 
 long stack_lock__(void **stk) {
     if (pthread_rwlock_rdlock(&mtx)) return -1;
+#if STACK_CHECK
     if ((checked_start(), sigsetjmp(savepoint, 1)) || !stack_check(stk)) {
         checked_end();
         pthread_rwlock_unlock(&mtx);
         return -1;
     }
+#endif
     return stack_ptr(*stk)->size - sizeof(struct generic_stack);
 }
 
 long stack_unlock__(void **stk) {
-    long res = -!stack_check(stk);
 
+#if STACK_CHECK
+    long res = -!stack_check(stk);
     checked_end();
+#else
+    long res = 0;
+#endif
     if (pthread_rwlock_unlock(&mtx)) return -1;
 
     return res;
@@ -248,12 +301,14 @@ void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     // Overflow
     if (caps < 0) return NULL;
 
+#if STACK_CHECK
     if (checked_start(), sigsetjmp(savepoint, 1)) goto e_stack_early;
+#endif
 
     struct generic_stack *stack = mmap(NULL, caps, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, 0, 0);
     if (stack == MAP_FAILED) goto e_stack;
 
-#ifdef MAGIC_FAILURE
+#if STACK_POISON
      for (long i = 0; i < caps/4; i++) {
          ((uint32_t*)stack)[i] = MAGIC_FAILURE;
      }
@@ -264,8 +319,10 @@ void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     stack->caps = caps;
     stack->size = sizeof *stack;
 
+#if STACK_CANARIES
     // Setup canaries
     setup_canaries(stack);
+#endif
 
 #ifndef NDEBUG
     stack->stack_decl = decl;
@@ -277,17 +334,24 @@ void *stack_alloc__(long caps, const char *decl, const char *file, int line) {
     (void)line;
 #endif
 
+#if STACK_HASHING
     stack->hash = crc(stack);
+#endif
 
+#if STACK_PROTECT
     // Make stack memory read-only
     if (mprotect(stack, stack->caps, PROT_READ)) goto e_stack;
+#endif
 
+#if STACK_CHECK
     void *data = stack->data;
     if (!stack_check(&data)) goto e_stack;
 
     // TODO Add new stack address to ebpf map
 
     checked_end();
+#endif
+
     return  (uint8_t *)stack + sizeof(*stack);
 
 e_stack:
@@ -307,7 +371,9 @@ long stack_free__(void **stk) {
     struct generic_stack *stack = stack_ptr(*stk);
     if (munmap(stack, stack->size)) res = -1;
 
+#if STACK_CHECK
     checked_end();
+#endif
     pthread_rwlock_unlock(&mtx);
     return res;
 }
@@ -323,11 +389,13 @@ void stack_set_logfile(FILE *file) {
 }
 
 _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *file, int line, const char *func) {
+#if STACK_CHECK
     if (checked_start(), sigsetjmp(savepoint, 1)) {
         checked_end();
         if (logfile) fprintf(logfile, "\nStack dump failed with SIGSEGV\n");
         __assert_fail(expr, file, line, func);
     }
+#endif
 
     if (logfile) {
 
@@ -357,7 +425,9 @@ _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *fi
         fprintf(logfile, "\t}\n}\n");
     }
 
+#if STACK_CHECK
     checked_end();
+#endif
     __assert_fail(expr, file, line, func);
 }
 
