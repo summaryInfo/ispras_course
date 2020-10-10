@@ -24,6 +24,7 @@
 #define BYTES_PER_LINE 8
 
 struct generic_stack {
+    long canaryp;
     unsigned long hash;
     long size;
     long caps;
@@ -85,7 +86,7 @@ inline static long *canary1_ptr(struct generic_stack *stack) {
 inline static void setup_canaries(struct generic_stack *stack) {
     long canary = rand();
     if (sizeof(long) == 8) canary |= (long)rand() << 32;
-    *canary1_ptr(stack) = stack->canary0 = canary;
+    *canary1_ptr(stack) = stack->canaryp = stack->canary0 = canary;
 }
 
 static void handle_fault(int code) {
@@ -141,6 +142,7 @@ static _Bool stack_check(void **stk) {
 
     // Canaries should not change
     if (*canary1_ptr(stack) != stack->canary0) return 0;
+    if (*canary1_ptr(stack) != stack->canaryp) return 0;
 
 #ifdef MAGIC_FAILURE
     // Search for poison
