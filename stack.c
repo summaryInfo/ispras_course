@@ -343,6 +343,7 @@ _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *fi
         fprintf(logfile, "\thash = 0x%016lX\n", stack->hash);
         fprintf(logfile, "\tsize = %ld\n", stack->size);
         fprintf(logfile, "\tcaps = %ld\n", stack->caps);
+        fprintf(logfile, "\tcanaryp = 0x%016lX\n", stack->canaryp);
         fprintf(logfile, "\tcanary0 = 0x%016lX\n", stack->canary0);
         fprintf(logfile, "\tcanary1 = 0x%016lX\n", *canary1_ptr(stack));
         fprintf(logfile, "\tdata = (uint8_t[]){\n");
