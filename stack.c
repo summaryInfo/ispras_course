@@ -408,12 +408,16 @@ _Noreturn void stack_assert_fail__(void **stk, const char * expr, const char *fi
 #else
         fprintf(logfile, "struct stack stk = {\n");
 #endif
+#if STACK_CHECK
         fprintf(logfile, "\thash = 0x%016lX\n", stack->hash);
+#endif
         fprintf(logfile, "\tsize = %ld\n", stack->size);
         fprintf(logfile, "\tcaps = %ld\n", stack->caps);
+#if STACK_CANARIES
         fprintf(logfile, "\tcanaryp = 0x%016lX\n", stack->canaryp);
         fprintf(logfile, "\tcanary0 = 0x%016lX\n", stack->canary0);
         fprintf(logfile, "\tcanary1 = 0x%016lX\n", *canary1_ptr(stack));
+#endif
         fprintf(logfile, "\tdata = (uint8_t[]){\n");
         for (long i = (long)sizeof(*stack); i < stack->size;) {
             fprintf(logfile, "\t\t[0x%08lX] = ", i - sizeof(*stack));
