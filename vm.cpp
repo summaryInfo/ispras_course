@@ -12,7 +12,9 @@
 #include <type_traits>
 #include <vector>
 
-class vmstate {
+constexpr static std::size_t stack_size = 1024;
+
+class vm_state {
     std::vector<uint8_t> stack;
     std::vector<uint8_t> memory;
 
@@ -28,15 +30,15 @@ class vmstate {
 public:
     void eval(const std::string &fun);
 
-    vmstate(std::size_t stack_size, std::string path) : stack(stack_size * sizeof(uint32_t)) {
+    vm_state(std::size_t stack_size, std::string path) : stack(stack_size * sizeof(uint32_t)) {
         std::ifstream fstr(path);
         object.read(fstr);
         sp = &*stack.end();
     }
-    vmstate(const vmstate &) = delete;
-    vmstate &operator=(const vmstate &)= delete;
+    vm_state(const vm_state &) = delete;
+    vm_state &operator=(const vm_state &)= delete;
 
-    void swap(vmstate &other) noexcept {
+    void swap(vm_state &other) noexcept {
         std::swap(stack, other.stack);
         std::swap(memory, other.memory);
         std::swap(sp, other.sp);
@@ -135,199 +137,246 @@ public:
 
 };
 
-using op_func = void(*)(vmstate &vm, const uint8_t *&ip);
+using op_func = void(*)(vm_state &vm, const uint8_t *&ip);
 
 constexpr double eps = 1e-6;
 
 /* VM opcodes */
 
-void op_wide(vmstate &vm, const uint8_t *&ip) {
+void op_wide(vm_state &vm, const uint8_t *&ip) {
     vm.set_wide();
 }
-template <typename T> void op_add(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_add(vm_state &vm, const uint8_t *&ip) {
     T arg = vm.pop<T>();
     vm.push<T>(arg + vm.pop<T>());
 }
-template <typename T> void op_inc(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_inc(vm_state &vm, const uint8_t *&ip) {
     vm.push<T>(vm.pop<T>() + util::read_either<T, uint8_t>(ip, vm.get_wide()));
 }
-template <typename T> void op_dec(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_dec(vm_state &vm, const uint8_t *&ip) {
     vm.push<T>(vm.pop<T>() - util::read_either<T, uint8_t>(ip, vm.get_wide()));
 }
-template <typename T> void op_sub(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_sub(vm_state &vm, const uint8_t *&ip) {
     T arg = vm.pop<T>();
     vm.push<T>(arg - vm.pop<T>());
 }
-template <typename T> void op_mul(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_mul(vm_state &vm, const uint8_t *&ip) {
     T arg = vm.pop<T>();
     vm.push<T>(arg * vm.pop<T>());
 }
-template <typename T> void op_div(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_div(vm_state &vm, const uint8_t *&ip) {
     T a = vm.pop<T>();
     T b = vm.pop<T>();
     // This should work for both integers and floats
     if (b <= T(eps)) throw std::invalid_argument("Divide by zero");
     vm.push<T>(a / b);
 }
-template <typename T> void op_rem(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_rem(vm_state &vm, const uint8_t *&ip) {
     T a = vm.pop<T>();
     T b = vm.pop<T>();
     if (b <= T(eps)) throw std::invalid_argument("Divide by zero");
     vm.push<T>(a % b);
 }
-template <typename T> void op_neg(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_neg(vm_state &vm, const uint8_t *&ip) {
     vm.push<T>(-vm.pop<T>());
 }
-template <typename T> void op_and(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_and(vm_state &vm, const uint8_t *&ip) {
     (void)ip;
     auto arg = vm.pop<std::make_unsigned_t<T>>();
     vm.push<T>(arg & vm.pop<std::make_unsigned_t<T>>());
 }
-template <typename T> void op_or(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_or(vm_state &vm, const uint8_t *&ip) {
     auto arg = vm.pop<std::make_unsigned_t<T>>();
     vm.push<T>(arg | vm.pop<std::make_unsigned_t<T>>());
 }
-template <typename T> void op_xor(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_xor(vm_state &vm, const uint8_t *&ip) {
     auto arg = vm.pop<std::make_unsigned_t<T>>();
     vm.push<T>(arg ^ vm.pop<std::make_unsigned_t<T>>());
 }
-template <typename T> void op_shr(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_shr(vm_state &vm, const uint8_t *&ip) {
     auto arg = vm.pop<std::make_unsigned_t<T>>();
     vm.push<T>(arg >> vm.pop<uint32_t>());
 }
-template <typename T> void op_shl(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_shl(vm_state &vm, const uint8_t *&ip) {
     auto arg = vm.pop<std::make_unsigned_t<T>>();
     vm.push<T>(arg << vm.pop<uint32_t>());
 }
-template <typename T> void op_sar(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_sar(vm_state &vm, const uint8_t *&ip) {
     // That is technically UB for until C++20, but works fine in practice
     auto arg = vm.pop<std::make_signed_t<T>>();
     vm.push<T>(arg >> vm.pop<int32_t>());
 }
-template <typename T> void op_not(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_not(vm_state &vm, const uint8_t *&ip) {
     vm.push<T>(~vm.pop<T>());
 }
-template <typename T> void op_jl(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jl(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     T arg = vm.pop<T>();
     if (vm.pop<T>() < arg) vm.jump(disp);
 }
-template <typename T> void op_jg(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jg(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     T arg = vm.pop<T>();
     if (vm.pop<T>() > arg) vm.jump(disp);
 }
-template <typename T> void op_jle(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jle(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     T arg = vm.pop<T>();
     if (vm.pop<T>() <= arg) vm.jump(disp);
 }
-template <typename T> void op_jge(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jge(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     T arg = vm.pop<T>();
     if (vm.pop<T>() >= arg) vm.jump(disp);
 }
-template <typename T> void op_je(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_je(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     T arg = vm.pop<T>();
     if (vm.pop<T>() == arg) vm.jump(disp);
 }
-template <typename T> void op_jne(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jne(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     T arg = vm.pop<T>();
     if (vm.pop<T>() != arg) vm.jump(disp);
 }
-template <typename T> void op_jz(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jz(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     if (!vm.pop<T>()) vm.jump(disp);
 }
-template <typename T> void op_jnz(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jnz(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     if (vm.pop<T>()) vm.jump(disp);
 }
-template <typename T> void op_jlz(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jlz(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     if (vm.pop<T>() < T{}) vm.jump(disp);
 }
-template <typename T> void op_jlez(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jlez(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     if (vm.pop<T>() <= T{}) vm.jump(disp);
 }
-template <typename T> void op_jgz(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jgz(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     if (vm.pop<T>() > T{}) vm.jump(disp);
 }
-template <typename T> void op_jgez(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_jgez(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     if (vm.pop<T>() >= T{}) vm.jump(disp);
 }
-void op_jmp(vmstate &vm, const uint8_t *&ip) {
+
+void op_jmp(vm_state &vm, const uint8_t *&ip) {
     ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
     vm.jump(disp);
 }
-template <typename T> void op_toi(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_toi(vm_state &vm, const uint8_t *&ip) {
     vm.push<int32_t>(vm.pop<T>());
 }
-template <typename T> void op_tol(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_tol(vm_state &vm, const uint8_t *&ip) {
     vm.push<int64_t>(vm.pop<T>());
 }
-template <typename T> void op_tof(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_tof(vm_state &vm, const uint8_t *&ip) {
     vm.push<float>(vm.pop<T>());
 }
-template <typename T> void op_tod(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_tod(vm_state &vm, const uint8_t *&ip) {
     vm.push<double>(vm.pop<T>());
 }
-template <typename T> void op_dup(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_dup(vm_state &vm, const uint8_t *&ip) {
     vm.push<T>(vm.top<T>());
 }
-template <typename T> void op_dup2(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_dup2(vm_state &vm, const uint8_t *&ip) {
     auto a = vm.pop<T>();
     auto b = vm.top<T>();
     vm.push<T>(a);
     vm.push<T>(b);
     vm.push<T>(a);
 }
-template <typename T> void op_drop(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_drop(vm_state &vm, const uint8_t *&ip) {
     (void)vm.pop<T>();
 }
-template <typename T> void op_drop2(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_drop2(vm_state &vm, const uint8_t *&ip) {
     (void)vm.pop<T>();
     (void)vm.pop<T>();
 }
-void op_call(vmstate &vm, const uint8_t *&ip) {
+
+void op_call(vm_state &vm, const uint8_t *&ip) {
     vm.invoke(util::read_either<uint16_t,uint8_t>(ip, vm.get_wide()));
 }
-void op_tcall(vmstate &vm, const uint8_t *&ip) {
+
+void op_tcall(vm_state &vm, const uint8_t *&ip) {
     // TODO
     throw std::logic_error("Not implemented");
 }
-template <typename T> void op_ret(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_ret(vm_state &vm, const uint8_t *&ip) {
     T res = vm.pop<T>();
     vm.ret();
     vm.push<T>(res);
 }
-template <> void op_ret<void>(vmstate &vm, const uint8_t *&ip) {
+
+template <> void op_ret<void>(vm_state &vm, const uint8_t *&ip) {
     vm.ret();
 }
-template <typename T> void op_ld(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_ld(vm_state &vm, const uint8_t *&ip) {
     vm.push<T>(vm.get_global<T>(util::read_either<uint16_t,uint8_t>(ip, vm.get_wide())));
 }
-template <typename T> void op_lda(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_lda(vm_state &vm, const uint8_t *&ip) {
     vm.push<T>(vm.get_local<T>(util::read_either<int16_t>(ip, vm.get_wide())));
 }
-template <typename T> void op_st(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_st(vm_state &vm, const uint8_t *&ip) {
     vm.set_global(util::read_either<uint16_t,uint8_t>(ip, vm.get_wide()), vm.pop<T>());
 }
-template <typename T> void op_sta(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_sta(vm_state &vm, const uint8_t *&ip) {
     vm.set_local(util::read_either<int16_t>(ip, vm.get_wide()), vm.pop<T>());
 }
-template <typename T> void op_ldi(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_ldi(vm_state &vm, const uint8_t *&ip) {
     vm.push(util::read_either<int16_t>(ip, vm.get_wide()));
 }
-template <typename T> void op_ldc(vmstate &vm, const uint8_t *&ip) {
+
+template <typename T> void op_ldc(vm_state &vm, const uint8_t *&ip) {
     vm.push(util::read_next<T>(ip));
 }
-void op_hlt(vmstate &vm, const uint8_t *&ip) {
+
+void op_hlt(vm_state &vm, const uint8_t *&ip) {
     vm.halt();
 }
 
@@ -367,7 +416,7 @@ op_func opcodes[std::numeric_limits<uint8_t>::max()] {
     /*[0x7C] =*/ op_jge<int64_t>, op_jne<int64_t>,  op_jnz<int64_t>,op_ret<double>
 };
 
-void vmstate::eval(const std::string &fun) {
+void vm_state::eval(const std::string &fun) {
     extern op_func opcodes[std::numeric_limits<uint8_t>::max()];
 
     strtab_index id = object.id(std::string(fun));
@@ -382,3 +431,18 @@ void vmstate::eval(const std::string &fun) {
     }
 }
 
+int main(int argc, char **argv) {
+    if (argc < 2 || (argc > 1 && !std::strcmp(argv[1], "-h"))) {
+        std::cout << "Usage:\n" << std::endl;
+        std::cout << "\t" << argv[0] << " <object>" << std::endl;
+        return 0;
+    }
+
+    // TODO Specify stack size via option
+    vm_state vm(stack_size, argv[1]);
+
+    /* By default 'main' function in file is called */
+    vm.eval("main");
+
+    return 0;
+}
