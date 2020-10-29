@@ -45,7 +45,7 @@ void object_file::write(std::ostream &st) {
     for (auto &f : functions) {
         vm_function vmf = {
             f.name,
-            f.signature,
+            id(std::string(f.signature)),
             id(std::string(f.locals)),
             static_cast<uint32_t>(file_offset),
             static_cast<uint32_t>(f.code.size())
@@ -87,8 +87,12 @@ struct stack_state {
     }
 };
 
-
-static void recur
+struct check_env {
+    object_file *obj;
+    function *fun;
+    std::vector<std::shared_ptr<stack_state>> anno;
+    std::vector<uint8_t>::iterator end;
+};
 
 /* Iterate through code,
  * recusively handling control flow splits
@@ -105,38 +109,41 @@ static void recur
  *
  * Overlapping instructions are allowed for now
  */
-bool trace_types(std::vector<std::shared_ptr<stack_state>> &anno, std::shared_ptr<stack_state> &state,
-           std::vector<uint8_t>::iterator op, std::vector<uint8_t>::iterator end) {
+bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector<uint8_t>::iterator op) {
 
-    bool wide = *op == op_pwide;
-
-    /* Annotate first instruction */
-    code_anno[0] = stk;
-
-
-    while (op < end) {
-        // TODO Assign type
-        while (*op == op_pwide) {
-            op++;
-        }
+    while (op < env.end) {
+        bool wide = *op == op_pwide;
+        uint8_t cmd{};
+        do {
+            env.anno[op - env.fun->code.begin()] = state;
+            cmd = *op++;
+        } while (*op == op_pwide);
 
         auto check_jump = [&]() -> bool {
             const uint8_t *tmp = &*op;
             auto disp = util::read_either<int16_t>(tmp, wide);
             wide = 0;
-            return op + disp > end || trace_types(anno, state, op + disp, end);
+            return op + disp < env.end && trace_types(env, state, op + disp);
         };
 
-        auto check = [&](const char *before, const char *after) -> bool {
+        auto check = [&](const char *sig) -> bool {
             // TODO
             return false;
+        };
+
+        auto check_call = [&](const char *after) -> bool {
+            const uint8_t *tmp = &*op;
+            auto disp = util::read_either<uint16_t, uint8_t>(tmp, wide);
+            wide = 0;
+            return disp < env.obj->functions.size() &&
+                   check(env.obj->functions[disp].signature.data());
         };
 
         switch(*op++) {
         case op_je_i: case op_jge_i:
         case op_jle_i: case op_jl_i:
         case op_jg_i: case op_jne_i:
-            if (!check("ii", "")) return false;
+            if (!check("(ii)")) return false;
             if (!check_jump()) return false;
             break;
         case op_add_i: case op_div_i:
@@ -145,224 +152,292 @@ bool trace_types(std::vector<std::shared_ptr<stack_state>> &anno, std::shared_pt
         case op_shl_i: case op_shr_i:
         case op_sub_i: case op_xor_i:
         case op_rem_i:
-            if (!check("ii", "i")) return false;
+            if (!check("(ii)i")) return false;
             break;
         case op_je_l: case op_jge_l:
         case op_jle_l: case op_jl_l:
         case op_jg_l: case op_jne_l:
             if (!check_jump()) return false;
-            if (!check("ll", "")) return false;
+            if (!check("(ll)")) return false;
             break;
         case op_add_l: case op_div_l:
         case op_and_l: case op_or_l:
         case op_mul_l: case op_sub_l:
         case op_xor_l: case op_rem_l:
-            if (!check("ll", "l")) return false;
+            if (!check("(ll)l")) return false;
             break;
         case op_sar_l: case op_shl_l:
         case op_shr_l:
-            if (!check("li", "l")) return false;
+            if (!check("(li)l")) return false;
             break;
         case op_jg_d: case op_jl_d:
-            if (!check("dd", "")) return false;
+            if (!check("(dd)")) return false;
             if (!check_jump()) return false;
             break;
         case op_add_d: case op_div_d:
         case op_mul_d: case op_sub_d:
-            if (!check("li", "l")) return false;
+            if (!check("(li)l")) return false;
             break;
         case op_jg_f: case op_jl_f:
-            if (!check("ff", "")) return false;
+            if (!check("(ff)")) return false;
             if (!check_jump()) return false;
             [[fallthrough]];
         case op_sub_f: case op_add_f:
         case op_div_f: case op_mul_f:
-            if (!check("ff", "f")) return false;
+            if (!check("(ff)f")) return false;
             break;
         case op_jz_l: case op_jlz_l:
         case op_jgz_l: case op_jnz_l:
             if (!check_jump()) return false;
-            if (!check("l", "")) return false;
+            if (!check("(l)")) return false;
             break;
         case op_inc_l: case op_dec_l:
         case op_neg_l: case op_not_l:
-            if (!check("l", "l")) return false;
+            if (!check("(l)l")) return false;
             break;
         case op_jz_i: case op_jlz_i:
         case op_jgz_i: case op_jnz_i:
             if (!check_jump()) return false;
-            if (!check("i", "")) return false;
+            if (!check("(i)")) return false;
             break;
         case op_inc_i: case op_dec_i:
         case op_neg_i: case op_not_i:
-            if (!check("i", "i")) return false;
+            if (!check("(i)i")) return false;
             break;
         case op_neg_d:
-            if (!check("d", "d")) return false;
+            if (!check("(d)d")) return false;
             break;
         case op_neg_f:
-            if (!check("f", "f")) return false;
+            if (!check("(f)f")) return false;
             break;
         case op_tod_f:
-            if (!check("f", "d")) return false;
+            if (!check("(f)d")) return false;
             break;
         case op_tod_i:
-            if (!check("i", "d")) return false;
+            if (!check("(i)d")) return false;
             break;
         case op_tod_l:
-            if (!check("l", "d")) return false;
+            if (!check("(l)d")) return false;
             break;
         case op_tof_d:
-            if (!check("d", "f")) return false;
+            if (!check("(d)f")) return false;
             break;
         case op_tof_i:
-            if (!check("i", "f")) return false;
+            if (!check("(i)f")) return false;
             break;
         case op_tof_l:
-            if (!check("l", "f")) return false;
+            if (!check("(l)f")) return false;
             break;
         case op_toi_d:
-            if (!check("d", "i")) return false;
+            if (!check("(d)i")) return false;
             break;
         case op_toi_f:
-            if (!check("f", "i")) return false;
+            if (!check("(f)i")) return false;
             break;
         case op_toi_l:
-            if (!check("l", "i")) return false;
+            if (!check("(l)i")) return false;
             break;
         case op_tol_d:
-            if (!check("d", "l")) return false;
+            if (!check("(d)l")) return false;
             break;
         case op_tol_f:
-            if (!check("f", "l")) return false;
+            if (!check("(f)l")) return false;
             break;
         case op_tol_i:
-            if (!check("i", "l")) return false;
+            if (!check("(i)l")) return false;
             break;
         case op_ldc_l:
-            // TODO
+            if (!check("()l")) return false;
+            op += sizeof(int64_t);
             break;
         case op_ldi_l:
-            // TODO
+            if (!check("()l")) return false;
+            op += 1 + wide;
             break;
         case op_ld_l:
-            // TODO
+            if (!check("()l")) return false;
+            // TODO check global
+            op += 1 + wide;
             break;
         case op_lda_l:
-            // TODO
+            if (!check("()l")) return false;
+            // TODO check local
+            op += 1 + wide;
             break;
         case op_ldc_i:
-            // TODO
+            if (!check("()i")) return false;
+            op += sizeof(int32_t);
             break;
         case op_ld_i:
-            // TODO
+            if (!check("()i")) return false;
+            // TODO check global
+            op += 1 + wide;
             break;
         case op_lda_i:
-            // TODO
+            if (!check("()i")) return false;
+            // TODO check local
+            op += 1 + wide;
             break;
         case op_ldi_i:
-            // TODO
+            if (!check("()i")) return false;
+            op += 1 + wide;
             break;
         case op_ldc_f:
-            // TODO
+            if (!check("()f")) return false;
+            op += sizeof(float);
             break;
         case op_ld_f:
-            // TODO
+            if (!check("()f")) return false;
+            // TODO check global
+            op += 1 + wide;
             break;
         case op_lda_f:
-            // TODO
+            if (!check("()f")) return false;
+            // TODO check local
+            op += 1 + wide;
             break;
         case op_ld_d:
-            // TODO
+            if (!check("()d")) return false;
+            // TODO check global
+            op += 1 + wide;
             break;
         case op_lda_d:
-            // TODO
+            if (!check("()d")) return false;
+            // TODO check local
+            op += 1 + wide;
             break;
         case op_ldc_d:
-            // TODO
+            if (!check("()d")) return false;
+            op += sizeof(double);
             break;
-        case op_dup_i: /* (i)ii or (f)ff */
-            // TODO
+        case op_dup_i:
+            if (!check("(i)ii") &&
+                !check("(f)ff")) return false;
             break;
-        case op_dup_l: /* (l)ll or (d)dd */
-            // TODO
+        case op_dup_l:
+            if (!check("(l)ll") &&
+                !check("(d)dd")) return false;
             break;
         case op_dup2_i:
-            // TODO
+            if (!check("(ii)iiii") &&
+                !check("(if)ifif") &&
+                !check("(fi)fifi") &&
+                !check("(ff)ffff")) return false;
             break;
         case op_dup2_l:
-            // TODO
+            if (!check("(ll)llll") &&
+                !check("(ld)ldld") &&
+                !check("(dl)dldl") &&
+                !check("(dd)dddd")) return false;
             break;
         case op_drop2_i:
-            // TODO
+            if (!check("(ii)") &&
+                !check("(if)") &&
+                !check("(fi)") &&
+                !check("(ff)")) return false;
             break;
         case op_drop2_l:
-            // TODO
+            if (!check("(ll)") &&
+                !check("(ld)") &&
+                !check("(dl)") &&
+                !check("(dd)")) return false;
             break;
         case op_drop_i:
-            // TODO
+            if (!check("(i)") &&
+                !check("(f)")) return false;
             break;
         case op_drop_l:
-            // TODO
+            if (!check("(l)") &&
+                !check("(d)")) return false;
             break;
-        case op_st_d: /* (d) */
+        case op_st_d:
+            if (!check("(d)")) return false;
+            // TODO check global
+            op += 1 + wide;
+            break;
         case op_sta_d:
-            // TODO
+            if (!check("(d)")) return false;
+            // TODO check local
             op += 1 + wide;
             break;
-        case op_st_i: /* (i) */
+        case op_st_i:
+            if (!check("(i)")) return false;
+            // TODO check global
+            op += 1 + wide;
+            break;
         case op_sta_i:
+            if (!check("(i)")) return false;
+            // TODO check local
             op += 1 + wide;
-            // TODO
             break;
-        case op_st_l: /* (l) */
+        case op_st_l:
+            if (!check("(l)")) return false;
+            // TODO check global
+            op += 1 + wide;
+            break;
         case op_sta_l:
+            if (!check("(l)")) return false;
+            // TODO check local
             op += 1 + wide;
-            // TODO
             break;
-        case op_st_f: /* (f)*/
+        case op_st_f:
+            if (!check("(f)")) return false;
+            // TODO check global
+            op += 1 + wide;
+            break;
         case op_sta_f:
+            if (!check("(f)")) return false;
+            // TODO check local
             op += 1 + wide;
-            // TODO
             break;
-        case op_jmp_: /* jump */
+        case op_jmp_:
             return check_jump();
             break;
-        case op_call_: /* (...) */
-            // TODO
+        case op_call_:
+            if (!check_call("")) return false;
             op += 1 + wide;
             break;
-        case op_call_d: /* (...)d */
-            // TODO
+        case op_call_d:
+            if (!check_call("d")) return false;
             op += 1 + wide;
             break;
-        case op_call_f: /* (...)f */
-            // TODO
+        case op_call_f:
+            if (!check_call("f")) return false;
             op += 1 + wide;
             break;
-        case op_call_i: /* (...)i */
-            // TODO
+        case op_call_i:
+            if (!check_call("i")) return false;
             op += 1 + wide;
             break;
-        case op_call_l: /* (...)l */
-            // TODO
+        case op_call_l:
+            if (!check_call("l")) return false;
             op += 1 + wide;
             break;
-        case op_tcall_: /* (...)..., term */
+        case op_tcall_:
             throw std::logic_error("Unimplemented");
         case op_hlt_: /* (), term */
             return true;
             break;
-        case op_ret_: /* (), term */
-            break;
-        case op_ret_d /* (d), term */:
-            break;
-        case op_ret_f /* (f), term */:
-            break;
-        case op_ret_i /* (i), term */:
-            break;
-        case op_ret_l /* (l), term */:
-            break;
+        case op_ret_:
+            //if (!check("()")) return false;
+            // TODO check signature
+            return true;
+        case op_ret_d:
+            if (!check("(d)")) return false;
+            // TODO check signature
+            return true;
+        case op_ret_f:
+            if (!check("(f)")) return false;
+            // TODO check signature
+            return true;
+        case op_ret_i:
+            if (!check("(i)")) return false;
+            // TODO check signature
+            return true;
+        case op_ret_l :
+            if (!check("(l)")) return false;
+            // TODO check signature
+            return true;
         default:
             return false;
         }
@@ -392,25 +467,18 @@ static const char *validate_functions(object_file &obj) {
             stk = std::make_shared<stack_state>(stk, c);
         }
 
-        auto it = obj.strtab.begin();
-        // TODO: This is inefficient
-        for (; it->second != fn.signature; it++) {
-            if (it == obj.strtab.end())
-                return "Function name is not found";
-        }
-
-        if (!it->first.size() || it->first[0] != '(')
+        if (!fn.signature.size() || fn.signature[0] != '(')
             return "Malformed signature";
 
-        auto clo = it->first.find(')', 1);
-        if (clo == it->first.npos || clo + 2 != it->first.size())
+        auto clo = fn.signature.find(')', 1);
+        if (clo == fn.signature.npos || clo + 2 != fn.signature.size())
             return "Malformed signature";
 
-        char return_sig = it->first[clo + 1];
+        char return_sig = fn.signature[clo + 1];
         if (!std::strchr("ilfd", return_sig))
             return "Unknown return type in signature";
 
-        std::string arg_sig(it->first.substr(1, clo));
+        std::string arg_sig(fn.signature.substr(1, clo));
         for (char c : arg_sig) {
             switch (c) {
             case 'i': fn.args_size += sizeof(int32_t); break;
@@ -423,8 +491,8 @@ static const char *validate_functions(object_file &obj) {
         }
 
         /* Code type annotation */
-        std::vector<std::shared_ptr<stack_state>> code_anno(fn.code.size());
-        if (!trace_types(code_anno, stk, fn.code.begin(), fn.code.end()))
+        check_env env = {&obj, &fn, {}, fn.code.end()};
+        if (!trace_types(env, stk, fn.code.begin()))
             return "Code is invalid";
     }
 }
@@ -521,7 +589,7 @@ object_file object_file::read(std::istream &str) {
         in.function_indices.emplace(fn.name, in.functions.size());
         in.functions.emplace_back(
             in.id(std::string(&strtab[fn.name])),
-            in.id(std::string(&strtab[fn.signature])),
+            std::string(&strtab[fn.signature]),
             std::string(&strtab[fn.locals]),
             0, /* frame_size -- calculated later */
             0, /* args_size -- calculated later */

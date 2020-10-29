@@ -53,7 +53,7 @@ struct vm_function {
  * used by vm and assembler */
 struct function {
     strtab_index name{};
-    strtab_index signature{};
+    std::string signature{};
     std::string locals;
     uint32_t frame_size{};
     uint32_t args_size{};
