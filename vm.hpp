@@ -29,8 +29,10 @@ struct vm_global {
     uint8_t flags{}; /* enum global_flags */
     uint16_t dummy0{};
     uint64_t init_value{}; /* stored binary representation */
+
     vm_global(strtab_index name_,char type_, uint8_t flags_) :
         name(name_), type(type_), flags(flags_) {}
+    vm_global() {}
 } __attribute__((packed));
 
 /* Global variable flags */
@@ -53,11 +55,17 @@ struct vm_function {
  * used by vm and assembler */
 struct function {
     strtab_index name{};
-    std::string signature{};
+    std::string signature;
     std::string locals;
     uint32_t frame_size{};
     uint32_t args_size{};
     std::vector<uint8_t> code;
+
+    function(strtab_index name_, std::string &&signature_, std::string &&locals_,
+             uint32_t frame_size_, uint32_t args_size_, std::vector<uint8_t> &&code_) :
+        name(name_), signature(std::move(signature_)), locals(std::move(locals_)),
+        frame_size(frame_size_), args_size(args_size_), code(std::move(code_)) {}
+    function() {}
 };
 
 struct object_file {

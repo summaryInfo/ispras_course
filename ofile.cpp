@@ -85,6 +85,9 @@ struct stack_state {
 
         return oth == thi;
     }
+    stack_state(std::shared_ptr<stack_state> next_, char type_) :
+        next(std::move(next_)), type(type_) {}
+    stack_state() {}
 };
 
 struct check_env {
@@ -133,13 +136,13 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
 
         auto check_call = [&](const char *after) -> bool {
             const uint8_t *tmp = &*op;
-            auto disp = util::read_either<uint16_t, uint8_t>(tmp, wide);
+            uint16_t disp = util::read_either<uint16_t, uint8_t>(tmp, wide);
             wide = 0;
             return disp < env.obj->functions.size() &&
                    check(env.obj->functions[disp].signature.data());
         };
 
-        switch(*op++) {
+        switch(cmd) {
         case op_je_i: case op_jge_i:
         case op_jle_i: case op_jl_i:
         case op_jg_i: case op_jne_i:
@@ -452,7 +455,7 @@ static const char *validate_functions(object_file &obj) {
         fn.frame_size = 0;
 
         /* Initial stack state */
-        std::shared_ptr<stack_state> stk = nullptr;
+        std::shared_ptr<stack_state> stk;
 
         for (char c : fn.locals) {
             switch (c) {
@@ -495,6 +498,8 @@ static const char *validate_functions(object_file &obj) {
         if (!trace_types(env, stk, fn.code.begin()))
             return "Code is invalid";
     }
+
+    return nullptr;
 }
 
 object_file object_file::read(std::istream &str) {
@@ -586,7 +591,7 @@ object_file object_file::read(std::istream &str) {
         str.seekg(fn.code_offset);
         str.read(reinterpret_cast<char *>(code.data()), fn.code_size);
 
-        in.function_indices.emplace(fn.name, in.functions.size());
+        in.function_indices.emplace(static_cast<strtab_index>(fn.name), in.functions.size());
         in.functions.emplace_back(
             in.id(std::string(&strtab[fn.name])),
             std::string(&strtab[fn.signature]),

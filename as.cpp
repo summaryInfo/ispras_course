@@ -417,8 +417,8 @@ object_file compile_functions(const char *file) {
                         print_line_error("Unresolved jumps", file, line_n, line, it);
                         throw std::logic_error("Unresolved jumps");
                     }
-                    out.functions[cfun].signature = out.id('(' + locals_sig + ')' + return_sig);
-                    out.functions[cfun].locals = out.id(std::move(locals_sig));
+                    out.functions[cfun].signature = '(' + locals_sig + ')' + return_sig;
+                    out.functions[cfun].locals = std::move(locals_sig);
 
                     /* Clear all temporary info */
                     locals.clear();
