@@ -6,8 +6,11 @@
 #include <cstring>
 #include <vector>
 
+/* String table index is an offset
+ * relative to string table start */
 using strtab_index = uint32_t;
 
+/* Object file header */
 struct vm_header {
     char signature[4]{};
     uint32_t flags{};
@@ -19,6 +22,7 @@ struct vm_header {
     uint32_t strtab_offset{};
 } __attribute__((packed));
 
+/* Object file global variable description */
 struct vm_global {
     strtab_index name{};
     char type{}; /* i, l, f or d */
@@ -29,15 +33,17 @@ struct vm_global {
         name(name_), type(type_), flags(flags_) {}
 } __attribute__((packed));
 
+/* Global variable flags */
 enum global_flags {
     gf_init = 1 << 0,
 };
 
-/* This is on-disk representation
- * of a function */
+/* Object file function description
+ * as it is represented on disk */
 struct vm_function {
     strtab_index name{};
     strtab_index signature{};
+    strtab_index locals{};
     uint32_t code_offset{};
     /* if code_size is 0 this is extern function */
     uint32_t code_size{};
@@ -48,33 +54,68 @@ struct vm_function {
 struct function {
     strtab_index name{};
     strtab_index signature{};
-    strtab_index locals{};
+    std::string locals;
     uint32_t frame_size{};
     uint32_t args_size{};
     std::vector<uint8_t> code;
 };
 
 struct object_file {
-    /* string table index */
-    std::map<std::string, uint32_t> strtab;
+    /* String table
+     * It is not the same as on-file representation
+     * for efficiency reasons */
+    std::map<std::string, strtab_index> strtab;
+    /* Last index in string table */
     uint32_t strtab_offset{};
 
-    /* global indexes and names  */
-    std::map<uint32_t, uint32_t> global_indices;
+    /* Names to globals indexes mapping */
+    std::map<strtab_index, uint32_t> global_indices;
+    /* Globals themselves */
     std::vector<vm_global> globals;
 
-    /* all functions */
-    std::map<uint32_t, uint32_t> function_indices;
+    /* Names to functions mapping */
+    std::map<strtab_index, uint32_t> function_indices;
+    /* Functions themselves */
     std::vector<function> functions;
 
     object_file() { id(""); }
 
-    void validate();
+    /** Write object file contents on disk
+     * 
+     * @param[inout] str binary file stream
+     */
     void write(std::ostream &str);
+    /** Read object file contents from disk
+     * 
+     * @param[inout] str binary file stream
+     */
     object_file read(std::istream &str);
+    /** Swap two object files
+     * 
+     *  @param[inout] other file to swap with
+     */
     void swap(object_file &other);
+    /** Add string to string table
+     * 
+     * @param [inout] str
+     * 
+     * @return string table index
+     * 
+     * @note str is moved
+     */
     strtab_index id(std::string &&str);
 
+    /** Add global variable description
+     * 
+     *  @param [inout] str variable name
+     *  @param [in] value initial value
+     *  @param [in] init flags signalizing whether value shuold be used
+     *  @param [in] type type id character of the variable
+     * 
+     *  @return true iff insertion was successful
+     * 
+     *  @note str is moved
+     */
     template <typename T>
     bool add_global(std::string &&str, T value, bool init, char type) {
         strtab_index idx = id(std::move(str));
@@ -82,6 +123,7 @@ struct object_file {
         auto res = global_indices.find(idx);
         size_t gi = globals.size();
         if (res == global_indices.end()) {
+            /* No variable with such name yet */
             global_indices.emplace(idx, globals.size());
             globals.emplace_back(idx, type, init * gf_init);
         } else {
