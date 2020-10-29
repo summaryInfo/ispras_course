@@ -86,5 +86,3 @@ namespace util {
         std::memcpy(&*vec.end() - sizeof value, &value, sizeof value);
     }
 }
-
-
