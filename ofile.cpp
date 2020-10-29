@@ -118,7 +118,9 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         bool wide = *op == op_pwide;
         uint8_t cmd{};
         do {
-            env.anno[op - env.fun->code.begin()] = state;
+            auto &ref = env.anno[op - env.fun->code.begin()];
+            if (ref && ref != state) return false;
+            ref = state;
             cmd = *op++;
         } while (*op == op_pwide);
 
@@ -132,6 +134,25 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         auto check = [&](const char *sig) -> bool {
             // TODO
             return false;
+        };
+
+        auto check_local = [&](char type) -> bool {
+            const uint8_t *tmp = &*op;
+            int16_t disp = util::read_either<int16_t>(tmp, wide);
+            wide = 0;
+            if (disp >= 0) {
+                // TODO
+            } else {
+                // TODO
+            }
+        };
+
+        auto check_global = [&](char type) -> bool {
+            const uint8_t *tmp = &*op;
+            uint16_t disp = util::read_either<uint16_t, uint8_t>(tmp, wide);
+            wide = 0;
+            return disp < env.obj->globals.size() &&
+                   env.obj->globals[disp].type == type;
         };
 
         auto check_call = [&](const char *after) -> bool {
@@ -259,13 +280,11 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_ld_l:
             if (!check("()l")) return false;
-            // TODO check global
-            op += 1 + wide;
+            if (!check_global('l')) return false;
             break;
         case op_lda_l:
             if (!check("()l")) return false;
-            // TODO check local
-            op += 1 + wide;
+            if (!check_local('l')) return false;
             break;
         case op_ldc_i:
             if (!check("()i")) return false;
@@ -273,13 +292,11 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_ld_i:
             if (!check("()i")) return false;
-            // TODO check global
-            op += 1 + wide;
+            if (!check_global('i')) return false;
             break;
         case op_lda_i:
             if (!check("()i")) return false;
-            // TODO check local
-            op += 1 + wide;
+            if (!check_local('i')) return false;
             break;
         case op_ldi_i:
             if (!check("()i")) return false;
@@ -291,23 +308,19 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_ld_f:
             if (!check("()f")) return false;
-            // TODO check global
-            op += 1 + wide;
+            if (!check_global('f')) return false;
             break;
         case op_lda_f:
             if (!check("()f")) return false;
-            // TODO check local
-            op += 1 + wide;
+            if (!check_local('f')) return false;
             break;
         case op_ld_d:
             if (!check("()d")) return false;
-            // TODO check global
-            op += 1 + wide;
+            if (!check_global('d')) return false;
             break;
         case op_lda_d:
             if (!check("()d")) return false;
-            // TODO check local
-            op += 1 + wide;
+            if (!check_local('d')) return false;
             break;
         case op_ldc_d:
             if (!check("()d")) return false;
@@ -355,43 +368,35 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_st_d:
             if (!check("(d)")) return false;
-            // TODO check global
-            op += 1 + wide;
+            if (!check_global('d')) return false;
             break;
         case op_sta_d:
             if (!check("(d)")) return false;
-            // TODO check local
-            op += 1 + wide;
+            if (!check_local('d')) return false;
             break;
         case op_st_i:
             if (!check("(i)")) return false;
-            // TODO check global
-            op += 1 + wide;
+            if (!check_global('i')) return false;
             break;
         case op_sta_i:
             if (!check("(i)")) return false;
-            // TODO check local
-            op += 1 + wide;
+            if (!check_local('i')) return false;
             break;
         case op_st_l:
             if (!check("(l)")) return false;
-            // TODO check global
-            op += 1 + wide;
+            if (!check_global('l')) return false;
             break;
         case op_sta_l:
             if (!check("(l)")) return false;
-            // TODO check local
-            op += 1 + wide;
+            if (!check_local('l')) return false;
             break;
         case op_st_f:
             if (!check("(f)")) return false;
-            // TODO check global
-            op += 1 + wide;
+            if (!check_global('f')) return false;
             break;
         case op_sta_f:
             if (!check("(f)")) return false;
-            // TODO check local
-            op += 1 + wide;
+            if (!check_local('f')) return false;
             break;
         case op_jmp_:
             return check_jump();
@@ -423,24 +428,19 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_ret_:
             //if (!check("()")) return false;
-            // TODO check signature
-            return true;
+            return env.fun->signature[env.fun->signature.size() - 1] == ')';
         case op_ret_d:
             if (!check("(d)")) return false;
-            // TODO check signature
-            return true;
+            return env.fun->signature[env.fun->signature.size() - 1] == 'd';
         case op_ret_f:
             if (!check("(f)")) return false;
-            // TODO check signature
-            return true;
+            return env.fun->signature[env.fun->signature.size() - 1] == 'f';
         case op_ret_i:
             if (!check("(i)")) return false;
-            // TODO check signature
-            return true;
+            return env.fun->signature[env.fun->signature.size() - 1] == 'i';
         case op_ret_l :
             if (!check("(l)")) return false;
-            // TODO check signature
-            return true;
+            return env.fun->signature[env.fun->signature.size() - 1] == 'l';
         default:
             return false;
         }
