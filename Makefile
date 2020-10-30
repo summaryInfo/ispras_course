@@ -1,4 +1,4 @@
-CXXFLAGS += -std=c++17 -Wall -Wextra -Wpedantic -Wno-unused-parameter
+CXXFLAGS += -std=c++14 -Wall -Wextra -Wpedantic -Wno-unused-parameter
 LDLIBS += -lstdc++
 
 VM := xsvm
@@ -23,8 +23,8 @@ $(VM): $(VMOBJ)
 $(ASM): $(ASMOBJ)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(ASMOBJ) $(LDLIBS) -o $@
 
-vm.o: util.hpp vm.hpp
-as.o: util.hpp vm.hpp
-ofile.o: util.hpp vm.hpp
+vm.o: util.hpp vm.hpp ofile.hpp
+as.o: util.hpp vm.hpp ofile.hpp
+ofile.o: util.hpp ofile.hpp
 
 .PHONY: all clean run

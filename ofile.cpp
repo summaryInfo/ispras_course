@@ -1,7 +1,7 @@
-#include "vm.hpp"
-#include "util.hpp"
+#include "ofile.hpp"
 
 #include <limits>
+#include <iostream>
 #include <memory>
 
 uint32_t object_file::id(std::string &&name) {
@@ -23,6 +23,14 @@ void object_file::swap(object_file &other) {
     std::swap(globals, other.globals);
     std::swap(function_indices, other.function_indices);
     std::swap(functions, other.functions);
+}
+
+std::vector<uint8_t> object_file::make_strtab() const {
+    std::vector<uint8_t> res;
+    std::map<uint32_t, std::string> revmap;
+    for (auto &i : strtab) revmap.emplace(i.second, i.first);
+    for (auto &str : revmap) std::copy(str.second.data(), str.second.data() + str.second.size() + 1, std::back_inserter(res));
+    return res;
 }
 
 void object_file::write(std::ostream &st) {
@@ -58,9 +66,9 @@ void object_file::write(std::ostream &st) {
     st.write(reinterpret_cast<char *>(&globals), globals.size()*sizeof(vm_global));
 
     /* 4. String table */
-    std::map<uint32_t, std::string> revmap;
-    for (auto &i : strtab) revmap.emplace(i.second, i.first);
-    for (auto &str : revmap) st.write(str.second.data(), str.second.size() + 1);
+    auto stt = make_strtab();
+    st.write(reinterpret_cast<char *>(stt.data()), stt.size());
+    stt.clear();
 
     /* 5. Functions code */
     for (auto &f : functions) st.write(reinterpret_cast<char *>(f.code.data()), f.code.size());
