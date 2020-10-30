@@ -34,16 +34,25 @@ std::vector<uint8_t> object_file::make_strtab() const {
 }
 
 void object_file::write(std::ostream &st) {
+
+    /* 0. Intern signatures beforeall */
+
+    for (auto &f : functions) {
+        id(std::string(f.signature));
+        id(std::string(f.locals));
+    }
+
     /* 1. File header */
+
     vm_header hd = {
-        /* magic */{'X','S','V','M'},
+        /* magic */ {'X','S','V','M'},
         /* flags */ 0,
-        /* functab_offset */ sizeof(vm_header),
         /* functab_size */ static_cast<uint32_t>(sizeof(vm_function)*functions.size()),
-        /* globtab_offset */ static_cast<uint32_t>(sizeof(vm_header) + sizeof(vm_function)*functions.size()),
+        /* functab_offset */ sizeof(vm_header),
         /* globtab_size */ static_cast<uint32_t>(sizeof(vm_global)*globals.size()),
+        /* globtab_offset */ static_cast<uint32_t>(sizeof(vm_header) + sizeof(vm_function)*functions.size()),
+        /* strtab_size */ static_cast<uint32_t>(strtab_offset),
         /* strtab_offset */ static_cast<uint32_t>(sizeof(vm_header) + sizeof(vm_function)*functions.size() + sizeof(vm_global)*globals.size()),
-        /* strtab_size */ static_cast<uint32_t>(strtab_offset)
     };
     size_t file_offset = hd.strtab_offset + hd.strtab_size;
 
@@ -58,12 +67,13 @@ void object_file::write(std::ostream &st) {
             static_cast<uint32_t>(file_offset),
             static_cast<uint32_t>(f.code.size())
         };
+
         st.write(reinterpret_cast<char *>(&vmf), sizeof(vmf));
         file_offset += f.code.size();
     }
 
     /* 3. Globals table */
-    st.write(reinterpret_cast<char *>(&globals), globals.size()*sizeof(vm_global));
+    st.write(reinterpret_cast<char *>(globals.data()), globals.size()*sizeof(vm_global));
 
     /* 4. String table */
     auto stt = make_strtab();
@@ -129,14 +139,19 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             auto &ref = env.anno[op - env.fun->code.begin()];
             if (ref) return ref == state;
             ref = state;
-            cmd = *op++;
-        } while (*op == op_pwide);
+            cmd = *++op;
+        } while (*op == op_pwide && op < env.end);
 
         auto check_jump = [&]() -> bool {
             const uint8_t *tmp = &*op;
             auto disp = util::read_either<int16_t>(tmp, wide);
             wide = 0;
-            return op + disp < env.end && trace_types(env, state, op + disp);
+            if (!(op - env.fun->code.begin() > disp && op + disp < env.end)) {
+                std::cerr << "Jump is out of bounds" << std::endl;
+                return false;
+            }
+            return trace_types(env, state, op + disp);
+                       
         };
 
         auto check = [&](const char *sig) -> bool {
@@ -147,17 +162,24 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
 
             /* Pop new types */
             auto it = arg_e - 1;
-            for (; it > arg_s && state; it--, state = state->next)
-                if (*it != state->type) return false;
+            for (; it > arg_s && state; it--, state = state->next) {
+                if (*it != state->type) {
+                    std::cerr << "Type interface violation" << std::endl;
+                    return false;
+                }
+            }
 
             /* Check stack underflow */
-            if (!state && it > arg_s) return false;
+            if (!state && it > arg_s) {
+                std::cerr << "Stack undeflow in code" << std::endl;
+                return false;
+            }
 
             /* Push new types */
             for (auto it = arg_e + 1; *it; it++)
                 state = std::make_shared<stack_state>(state, *it);
 
-            return false;
+            return true;
         };
 
         auto check_local = [&](char type) -> bool {
@@ -177,34 +199,38 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 while (offset < std::size_t(disp) && i > arg_s) {
                     switch(env.fun->signature[--i]) {
                     case 'l': case 'd':
-                    	offset++;
-                    	[[fallthrough]];
+                        offset++;
+                        [[fallthrough]];
                     case 'i': case 'f':
                         offset++;
-                    	break;
+                        break;
                     default:
                         throw std::logic_error("Oops");
                     }
                 }
-                return i > arg_s && offset == std::size_t(disp) &&
+                auto res = i > arg_s && offset == std::size_t(disp) &&
                        env.fun->signature[i - 1] == type;
+                if (!res) std::cerr << "Parameter type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
+                return res;
             } else /* local */ {
                 std::size_t offset{}, i{};
                 while (offset < std::size_t(1 - disp) && i < env.fun->locals.size()) {
                     switch(env.fun->locals[i++]) {
                     case 'l': case 'd':
-                    	offset++;
-                    	[[fallthrough]];
+                        offset++;
+                        [[fallthrough]];
                     case 'i': case 'f':
                         offset++;
-                    	break;
+                        break;
                     default:
                         throw std::logic_error("Oops");
                     }
                 }
-                return i < env.fun->locals.size() &&
-                       offset == std::size_t(1 - disp) &&
-                       env.fun->locals[i] == type;
+                auto res = i < env.fun->locals.size() &&
+                           offset == std::size_t(1 - disp) &&
+                           env.fun->locals[i] == type;
+                if (!res) std::cerr << "Local variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
+                return res;
             }
         };
 
@@ -212,16 +238,20 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             const uint8_t *tmp = &*op;
             uint16_t disp = util::read_either<uint16_t, uint8_t>(tmp, wide);
             wide = 0;
-            return disp < env.obj->globals.size() &&
-                   env.obj->globals[disp].type == type;
+            auto res = disp < env.obj->globals.size() &&
+                       env.obj->globals[disp].type == type;
+            if (!res) std::cerr << "Global variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
+            return res;
         };
 
         auto check_call = [&](const char *after) -> bool {
             const uint8_t *tmp = &*op;
             uint16_t disp = util::read_either<uint16_t, uint8_t>(tmp, wide);
             wide = 0;
-            return disp < env.obj->functions.size() &&
-                   check(env.obj->functions[disp].signature.data());
+            auto res = disp < env.obj->functions.size() &&
+                       check(env.obj->functions[disp].signature.data());
+            if (!res) std::cerr << "Function call type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
+            return res;
         };
 
         switch(cmd) {
@@ -503,6 +533,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             if (!check("(l)")) return false;
             return env.fun->signature[env.fun->signature.size() - 1] == 'l';
         default:
+            std::cerr << "Unknown opcode " << std::hex << (uint32_t)cmd << std::endl;
             return false;
         }
     }
@@ -542,7 +573,7 @@ static const char *validate_functions(object_file &obj) {
         if (!std::strchr("ilfd", return_sig))
             return "Unknown return type in signature";
 
-        std::string arg_sig(fn.signature.substr(1, clo));
+        std::string arg_sig(fn.signature.substr(1, clo - 1));
         for (char c : arg_sig) {
             switch (c) {
             case 'i': fn.args_size += sizeof(int32_t); break;
@@ -556,6 +587,7 @@ static const char *validate_functions(object_file &obj) {
 
         /* Code type annotation */
         check_env env = {&obj, &fn, {}, fn.code.end()};
+        env.anno.resize(fn.code.size());
         if (!trace_types(env, stk, fn.code.begin()))
             return "Code is invalid";
     }
@@ -609,25 +641,26 @@ void object_file::read(std::istream &str) {
             throw std::invalid_argument("String table index is out of bounds");
 
         /* Intern global name into a string table */
-        auto idx = id(std::string(&vstrtab[gl.name]));
+        gl.name = id(std::string(&vstrtab[gl.name]));
 
         if (!std::strchr("ilfd", gl.type))
             throw std::invalid_argument("Unknown global type");
         if (gl.flags & ~gf_init)
             throw std::invalid_argument("Unsupported global flags");
-        if (gl.flags & gf_init && gl.init_value)
+        if (!(gl.flags & gf_init) && gl.init_value)
             throw std::invalid_argument("Non-zero reserved init value");
         if (gl.dummy0)
             throw std::invalid_argument("Non-zero reserved value");
 
-        global_indices.emplace(idx, i++);
+        global_indices.emplace((uint32_t)gl.name, i++);
     }
 
     /* 4. Functions table */
 
     std::vector<vm_function> vfunctions(hd.funcs_size/sizeof(vm_function));
     str.seekg(hd.funcs_offset);
-    str.read(reinterpret_cast<char *>(functions.data()), hd.funcs_size);
+    str.read(reinterpret_cast<char *>(vfunctions.data()), hd.funcs_size);
+
 
     for (auto &fn : vfunctions) {
         if (fn.name >= vstrtab.size())
@@ -637,7 +670,7 @@ void object_file::read(std::istream &str) {
         if (fn.locals >= vstrtab.size())
             throw std::invalid_argument("String table index is out of bounds");
 
-        if (fn.code_size + fn.code_offset >= pos)
+        if (fn.code_size + fn.code_offset > pos)
             throw std::invalid_argument("Function body is out of bounds");
         // TODO
         if (!fn.code_size)

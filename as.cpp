@@ -20,7 +20,7 @@ enum insn_class {
     ins_plain,
     ins_jump,
     ins_call,
-    ins_memory 
+    ins_memory
 };
 
 struct opdesc {
@@ -42,15 +42,15 @@ const static std::map<std::string, opdesc> cmds = {
      *    ldc.i/ldc.l/ldc.f/ldc.d
      *    ldi.i/ldi.l
      * 'wide' is a prefix and never should be used explicitly
-     */   
-    {"ld.i", {op_ld_i, ins_memory, 'i'}},
-    {"ld.l", {op_ld_l, ins_memory, 'l'}},
-    {"ld.f", {op_ld_f, ins_memory, 'f'}},
-    {"ld.d", {op_ld_d, ins_memory, 'd'}},
-    {"st.i", {op_st_i, ins_memory, 'i'}},
-    {"st.l", {op_st_l, ins_memory, 'l'}},
-    {"st.f", {op_st_f, ins_memory, 'f'}},
-    {"st.d", {op_st_d, ins_memory, 'd'}},
+     */
+    {"ld.i", {op_lda_i, ins_memory, 'i'}},
+    {"ld.l", {op_lda_l, ins_memory, 'l'}},
+    {"ld.f", {op_lda_f, ins_memory, 'f'}},
+    {"ld.d", {op_lda_d, ins_memory, 'd'}},
+    {"st.i", {op_sta_i, ins_memory, 'i'}},
+    {"st.l", {op_sta_l, ins_memory, 'l'}},
+    {"st.f", {op_sta_f, ins_memory, 'f'}},
+    {"st.d", {op_sta_d, ins_memory, 'd'}},
     {"add.i", {op_add_i, ins_plain, 'i'}},
     {"add.l", {op_add_l, ins_plain, 'l'}},
     {"add.f", {op_add_f, ins_plain, 'f'}},
@@ -152,13 +152,13 @@ constexpr static int32_t global_load_op_offset = 2;
 
 static void print_line_error(const char *msg, const char *file, size_t line_n, const std::string &line, std::string::iterator it) {
     std::cerr
-        << msg << "at file " << file << ":" << line_n << std::endl
+        << msg << " at file " << file << ":" << line_n << std::endl
         << std::setw(it - line.begin()) << "|\n"
         << std::setw(it - line.begin()) << "V\n"
         << line << std::endl;
 }
 
-object_file compile_functions(const char *file) {
+object_file compile_functions(const char *file, std::istream &istr) {
     /* unresolved jump instructions for current function */
     std::map<std::string, uint32_t> labels;
     std::multimap<std::string, uint32_t> jumps;
@@ -179,13 +179,6 @@ object_file compile_functions(const char *file) {
 
     /* object file representation we generate */
     object_file out;
-
-    /* That looks like a hack... */
-    if (file && !std::freopen(file, "r", stdin)) {
-        std::cerr << "Cannot open file '" << file << "'" << std::endl;
-        throw std::invalid_argument("No file");
-    } else file = "<stdin>";
-
 
     /* Emit call instruction */
     auto compile_call =  [&out](uint32_t cfun, uint8_t op, std::string id) -> const char * {
@@ -225,7 +218,6 @@ object_file compile_functions(const char *file) {
             if (disp - short_jump_len <= std::numeric_limits<int8_t>::max() &&
                 disp - short_jump_len >= std::numeric_limits<int8_t>::min()) {
                  /* Can generate short jump insn */
-                code.push_back(op_pwide);
                 code.push_back(op);
                 code.push_back(disp);
             } else if (disp - long_jump_len <= std::numeric_limits<int16_t>::max() &&
@@ -233,16 +225,17 @@ object_file compile_functions(const char *file) {
                  /* Can generate long jump insn */
                 code.push_back(op_pwide);
                 code.push_back(op);
-                util::vec_put_native(code, (int16_t)disp);
+                util::vec_put_native<int16_t>(code, disp);
             } else return "Jump is out of range";
         } else {
+            /* Store jump as one of unresolved jumps */
+            jumps.emplace(std::move(id), code.size());
+
             /* If we does not know where we jump
              * for sake of simplicity generate long jump */
             code.push_back(op_pwide);
             code.push_back(op);
-            util::vec_put_native(code, int16_t{0});
-            /* And store jump as one of unresolved jumps */
-            jumps.emplace(std::move(id), code.size());
+            util::vec_put_native<int16_t>(code, 0);
         }
         return nullptr;
     };
@@ -257,14 +250,13 @@ object_file compile_functions(const char *file) {
 
             if (disp <= std::numeric_limits<int8_t>::max() &&
                 disp >= std::numeric_limits<int8_t>::min()) {
-                code.push_back(op_pwide);
                 code.push_back(op);
                 code.push_back(disp);
             } else if (disp <= std::numeric_limits<int16_t>::max() &&
                        disp >= std::numeric_limits<int16_t>::min()) {
                 code.push_back(op_pwide);
                 code.push_back(op);
-                util::vec_put_native(code, (int16_t)disp);
+                util::vec_put_native<int16_t>(code, disp);
             } else return "Too many locals/arguments";
         } else {
             /* Otherwise consider local to be a load of global variable */
@@ -281,10 +273,76 @@ object_file compile_functions(const char *file) {
                            disp >= std::numeric_limits<uint16_t>::min()) {
                     code.push_back(op_pwide);
                     code.push_back(op + global_load_op_offset);
-                    util::vec_put_native(code, (int16_t)disp);
+                    util::vec_put_native<uint16_t>(code, disp);
                 } else return "Too many globals";
             } else return "Undefined variable";
         }
+        return nullptr;
+    };
+
+    /* Emit constant load */
+    auto compile_const = [](std::vector<uint8_t> &code, std::string &&label, uint8_t op, std::string::iterator &it, char type) -> const char *{
+        if ((op & ~0x60) != op_lda_i) return "Constant store";
+        char *end;
+        errno = 0;
+        switch(type) {
+        case 'i': {
+            long res = std::strtol(&*it, &end, 0);
+            if (res <= std::numeric_limits<int8_t>::max() ||
+                res >= std::numeric_limits<int8_t>::min()) {
+                /* Generate ldi.i */
+                code.push_back(op_ldi_i);
+                util::vec_put_native(code, (int8_t)res);
+            } else if (res <= std::numeric_limits<int16_t>::max() ||
+                       res >= std::numeric_limits<int16_t>::min()) {
+                /* Generate wide ldi.i */
+                code.push_back(op_pwide);
+                code.push_back(op_ldi_i);
+                util::vec_put_native(code, (int16_t)res);
+            } else {
+                /* Generate wide ldc.i */
+                code.push_back(op_ldc_i);
+                if (res > std::numeric_limits<int32_t>::max() ||
+                    res < std::numeric_limits<int32_t>::min()) errno = ERANGE;
+                util::vec_put_native(code, (int32_t)res);
+            }
+        } break;
+        case 'l': {
+            long long res = std::strtoll(&*it, &end, 0);
+            if (res <= std::numeric_limits<int8_t>::max() ||
+                res >= std::numeric_limits<int8_t>::min()) {
+                /* Generate ldi.i */
+                code.push_back(op_ldi_l);
+                util::vec_put_native(code, (int8_t)res);
+            } else if (res <= std::numeric_limits<int16_t>::max() ||
+                       res >= std::numeric_limits<int16_t>::min()) {
+                /* Generate wide ldi.i */
+                code.push_back(op_pwide);
+                code.push_back(op_ldi_l);
+                util::vec_put_native(code, (int16_t)res);
+            } else {
+                /* Generate wide ldc.i */
+                code.push_back(op_ldc_l);
+                if (res > std::numeric_limits<int64_t>::max() ||
+                    res < std::numeric_limits<int64_t>::min()) errno = ERANGE;
+                util::vec_put_native(code, (int64_t)res);
+            }
+        } break;
+        case 'f': {
+            float res = std::strtof(&*it, &end);
+            code.push_back(op_ldc_f);
+            util::vec_put_native(code, res);
+        } break;
+        case 'd': {
+            code.push_back(op_ldc_d);
+            double res = std::strtod(&*it, &end);
+            util::vec_put_native(code, res);
+        } break;
+        default:
+            throw std::logic_error("Unreachable");
+        }
+        if (errno || end == &*it) return ("Malformed constant");
+        it += end - &*it;
         return nullptr;
     };
 
@@ -297,11 +355,11 @@ object_file compile_functions(const char *file) {
         if (range.first != jumps.end()) {
             /* and resolve jumps */
             for (auto itr = range.first; itr != range.second; itr++) {
-                int32_t disp = off - itr->second;
+                int32_t disp = off - itr->second - 4;
                 if (disp <= std::numeric_limits<int16_t>::max() &&
                     disp >= std::numeric_limits<int16_t>::min()) {
                     int16_t d16 = disp;
-                    std::memcpy(&fun.code[off - sizeof d16], &d16, sizeof d16);
+                    std::memcpy(&fun.code[itr->second + 2], &d16, sizeof d16);
                 } else {
                     /* It is a little confusing to generate
                      * this mesage in place of label definition and
@@ -315,8 +373,22 @@ object_file compile_functions(const char *file) {
         return nullptr;
     };
 
+    /* Emit finished function*/
+    auto emit_function = [&](uint32_t cfun) -> const char * {
+        if (!jumps.empty()) return "Unresolved jumps";
+        out.functions[cfun].signature = '(' + args_sig + ')' + return_sig;
+        out.functions[cfun].locals = std::move(locals_sig);
 
-    while (getline(std::cin, line)) {
+        /* Clear all temporary info */
+        locals.clear();
+        locals_sig.clear();
+        args_sig.clear();
+        labels.clear();
+
+        return nullptr;
+    };
+
+    while (getline(istr, line)) {
         /* Skip whitespaces */
         auto skip_spaces = [](std::string::iterator &it) {
             while(*it && std::isspace(*it)) it++;
@@ -324,7 +396,7 @@ object_file compile_functions(const char *file) {
         /* Read identifier */
         auto consume_id = [&](std::string &id, std::string::iterator &it, const char *additional_term) {
             id.clear();
-            while (*it && std::isalnum(*it)) id.push_back(*it++);
+            while (*it && (std::isalnum(*it) || *it == '.')) id.push_back(*it++);
             if (!id.length() || !(!*it || std::isspace(*it) || std::strchr(additional_term,*it))) {
                 print_line_error("Malformed identifier", file, line_n, line, it);
                 throw std::logic_error("Malformed id");
@@ -340,6 +412,9 @@ object_file compile_functions(const char *file) {
         else if (*it == '.') /* directive */ {
             /* All of supported directives apparently have the same format:
              * .<directive> <type> <name> */
+
+             /* skip dot */
+             it++;
 
             /* read directive name */
             std::string id;
@@ -401,7 +476,7 @@ object_file compile_functions(const char *file) {
                     print_line_error("Locals can only be defined inside a function", file, line_n, line, it);
                     throw std::logic_error("Out of scope");
                 }
-                locals_sig.push_back(id[0]);
+                locals_sig.push_back(typid[0]);
                 locals.emplace(std::move(name), -locals_sig.size());
             } else if (id == "param") {
                 /* Prameters have positive indices for lda/sta */
@@ -409,22 +484,15 @@ object_file compile_functions(const char *file) {
                     print_line_error("Parameters can only be defined inside a function", file, line_n, line, it);
                     throw std::logic_error("Out of scope");
                 }
-                args_sig.push_back(id[0]);
+                args_sig.push_back(typid[0]);
                 locals.emplace(std::move(name), args_sig.size());
             } else if (id == "function") {
                 if (cfun != no_function) {
-                    if (!jumps.empty()) {
-                        print_line_error("Unresolved jumps", file, line_n, line, it);
-                        throw std::logic_error("Unresolved jumps");
+                    auto erc = emit_function(cfun);
+                    if (erc) {
+                        print_line_error(erc, file, line_n, line, it);
+                        throw std::logic_error(erc);
                     }
-                    out.functions[cfun].signature = '(' + locals_sig + ')' + return_sig;
-                    out.functions[cfun].locals = std::move(locals_sig);
-
-                    /* Clear all temporary info */
-                    locals.clear();
-                    locals_sig.clear();
-                    args_sig.clear();
-                    labels.clear();
                 }
 
                 return_sig = typid[0];
@@ -448,7 +516,7 @@ object_file compile_functions(const char *file) {
                 throw std::logic_error("Unknown directive");
             }
 
-        } else /* command or label */ {
+        } else if (*it != '#') /* command or label */ {
             if (cfun == no_function) {
                 print_line_error("Instruction are only allowed inside a function", file, line_n, line, it);
                 throw std::logic_error("Out of scope");
@@ -459,13 +527,16 @@ object_file compile_functions(const char *file) {
             if (*it == ':') /* label */ {
                 it++;
                 label = std::move(id);
-                consume_id(id, it, "#");
 
                 auto erc = add_label(out.functions[cfun], std::move(label));
                 if (erc) {
                     print_line_error(erc, file, line_n, line, it);
                     throw std::out_of_range(erc);
                 }
+
+                skip_spaces(it);
+                if (!*it) continue;
+                consume_id(id, it, "#");
             }
 
             auto insn = cmds.find(id);
@@ -496,47 +567,19 @@ object_file compile_functions(const char *file) {
                 out.functions[cfun].code.push_back(insn->second.code);
             } break;
             case ins_memory: {
+                const char *erc{};
                 if (*it == '$') /* immediate */ {
                     skip_spaces(++it);
-                    char *end;
-                    errno = 0;
-                    switch(insn->second.type) {
-                    case 'i': {
-                        long res = std::strtol(&*it, &end, 0);
-                        if (res > std::numeric_limits<int32_t>::max() ||
-                            res < std::numeric_limits<int32_t>::min()) errno = ERANGE;
-                        util::vec_put_native(out.functions[cfun].code, (int32_t)res);
-                    } break;
-                    case 'l': {
-                        long long res = std::strtoll(&*it, &end, 0);
-                        if (res > std::numeric_limits<int64_t>::max() ||
-                            res < std::numeric_limits<int64_t>::min()) errno = ERANGE;
-                        util::vec_put_native(out.functions[cfun].code, (int64_t)res);
-                    } break;
-                    case 'f': {
-                        float res = std::strtof(&*it, &end);
-                        util::vec_put_native(out.functions[cfun].code, res);
-                    } break;
-                    case 'd': {
-                        float res = std::strtod(&*it, &end);
-                        util::vec_put_native(out.functions[cfun].code, res);
-                    } break;
-                    default:
-                        throw std::logic_error("Unreachable");
-                    }
-                    if (errno || end == &*it) {
-                        print_line_error("Malformed constant", file, line_n, line, it);
-                        throw std::invalid_argument("Malformed constant");
-                    }
-                    it += end - &*it;
+                    erc = compile_const(out.functions[cfun].code,
+                                        std::move(label), insn->second.code,
+                                        it, insn->second.type);
                 } else {
                     consume_id(label, it, "#");
-
-                    auto *erc = compile_load(out.functions[cfun].code, std::move(label), insn->second.code);
-                    if (erc) {
-                        print_line_error(erc, file, line_n, line, it);
-                        throw std::logic_error(erc);
-                    }
+                    erc = compile_load(out.functions[cfun].code, std::move(label), insn->second.code);
+                }
+                if (erc) {
+                    print_line_error(erc, file, line_n, line, it);
+                    throw std::logic_error(erc);
                 }
             } break;
             }
@@ -553,9 +596,10 @@ object_file compile_functions(const char *file) {
         line_n++;
     }
 
-    if (!jumps.empty()) {
-        print_line_error("Unresolved jumps", file, line_n, line, line.begin());
-        throw std::logic_error("Unresolved jumps");
+    auto erc = emit_function(cfun);
+    if (erc) {
+        print_line_error(erc, file, line_n, line, line.end() - 1);
+        throw std::logic_error(erc);
     }
 
     return out;
@@ -570,7 +614,13 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    auto obj = compile_functions(argc > 2 ? argv[2] : nullptr);
+    object_file obj;
+    if (argc > 2) {
+        std::ifstream fstr(argv[2]);
+        obj = compile_functions(argv[2], fstr);
+    } else {
+        obj = compile_functions("<stdoin>", std::cin);
+    }
 
     std::ofstream outstr(argv[1]);
     obj.write(outstr);

@@ -2,6 +2,8 @@
 
 #include "util.hpp"
 
+#include <iostream>
+
 #include <cstdint>
 #include <cstring>
 #include <map>
@@ -31,7 +33,7 @@ struct vm_global {
     uint16_t dummy0{};
     uint64_t init_value{}; /* stored binary representation */
 
-    vm_global(strtab_index name_,char type_, uint8_t flags_) :
+    vm_global(strtab_index name_, char type_, uint8_t flags_) :
         name(name_), type(type_), flags(flags_) {}
     vm_global() {}
 } __attribute__((packed));
@@ -140,7 +142,7 @@ struct object_file {
         if (res == global_indices.end()) {
             /* No variable with such name yet */
             global_indices.emplace(idx, globals.size());
-            globals.emplace_back(idx, type, init * gf_init);
+            globals.emplace_back(idx, type, 0);
         } else {
             if (globals[res->second].type != type) return false;
             gi = res->second;

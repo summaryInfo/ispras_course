@@ -11,7 +11,7 @@ DISOBJ := ofile.o disas.o
 ifdef NDEBUG
 CXXFLAGS += -DNDEBUG=$(NDEBUG) -O2
 else
-CXXFLAGS += -Og
+CXXFLAGS += -Og -g
 endif
 
 all: $(VM) $(ASM) $(DIS)
