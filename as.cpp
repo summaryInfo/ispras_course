@@ -191,6 +191,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
             func_i = out.functions.size();
             out.function_indices.emplace(idx, func_i);
             out.functions.emplace_back();
+            out.functions.back().name = idx;
         } else func_i = fun_idx->second;
 
         auto &code = out.functions[cfun].code;
