@@ -100,7 +100,7 @@ struct object_file {
      *
      * @param[inout] str binary file stream
      */
-    object_file read(std::istream &str);
+    void read(std::istream &str);
     /** Swap two object files
      *
      *  @param[inout] other file to swap with

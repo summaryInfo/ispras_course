@@ -476,11 +476,11 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_tcall_:
             throw std::logic_error("Unimplemented");
-        case op_hlt_: /* (), term */
+        case op_hlt_:
             return true;
             break;
         case op_ret_:
-            //if (!check("()")) return false;
+            if (!check("()")) return false;
             return env.fun->signature[env.fun->signature.size() - 1] == ')';
         case op_ret_d:
             if (!check("(d)")) return false;
@@ -555,9 +555,7 @@ static const char *validate_functions(object_file &obj) {
     return nullptr;
 }
 
-object_file object_file::read(std::istream &str) {
-    object_file in;
-
+void object_file::read(std::istream &str) {
     /* 1. Header */
 
     struct vm_header hd;
@@ -583,27 +581,27 @@ object_file object_file::read(std::istream &str) {
 
     /* 2. String table */
 
-    std::vector<char> strtab(hd.strtab_size);
+    std::vector<char> vstrtab(hd.strtab_size);
     str.seekg(hd.strtab_offset);
-    str.read(strtab.data(), hd.strtab_size);
+    str.read(vstrtab.data(), hd.strtab_size);
 
-    if (strtab[0] || strtab.back())
+    if (vstrtab[0] || vstrtab.back())
         throw std::invalid_argument("String table is not bounded");
 
     /* 3. Globals table */
 
-    in.globals.resize(hd.globals_size/sizeof(vm_global));
+    globals.resize(hd.globals_size/sizeof(vm_global));
     str.seekg(hd.globals_offset);
-    str.read(reinterpret_cast<char *>(in.globals.data()), hd.globals_size);
+    str.read(reinterpret_cast<char *>(globals.data()), hd.globals_size);
 
     /* Validate each global */
     size_t i{};
-    for (auto &gl : in.globals) {
-        if (gl.name >= strtab.size())
+    for (auto &gl : globals) {
+        if (gl.name >= vstrtab.size())
             throw std::invalid_argument("String table index is out of bounds");
 
         /* Intern global name into a string table */
-        auto id = in.id(std::string(&strtab[gl.name]));
+        auto idx = id(std::string(&vstrtab[gl.name]));
 
         if (!std::strchr("ilfd", gl.type))
             throw std::invalid_argument("Unknown global type");
@@ -614,21 +612,21 @@ object_file object_file::read(std::istream &str) {
         if (gl.dummy0)
             throw std::invalid_argument("Non-zero reserved value");
 
-        in.global_indices.emplace(id, i++);
+        global_indices.emplace(idx, i++);
     }
 
     /* 4. Functions table */
 
-    std::vector<vm_function> functions(hd.funcs_size/sizeof(vm_function));
+    std::vector<vm_function> vfunctions(hd.funcs_size/sizeof(vm_function));
     str.seekg(hd.funcs_offset);
     str.read(reinterpret_cast<char *>(functions.data()), hd.funcs_size);
 
-    for (auto &fn : functions) {
-        if (fn.name >= strtab.size())
+    for (auto &fn : vfunctions) {
+        if (fn.name >= vstrtab.size())
             throw std::invalid_argument("String table index is out of bounds");
-        if (fn.signature >= strtab.size())
+        if (fn.signature >= vstrtab.size())
             throw std::invalid_argument("String table index is out of bounds");
-        if (fn.locals >= strtab.size())
+        if (fn.locals >= vstrtab.size())
             throw std::invalid_argument("String table index is out of bounds");
 
         if (fn.code_size + fn.code_offset >= pos)
@@ -644,25 +642,24 @@ object_file object_file::read(std::istream &str) {
         str.seekg(fn.code_offset);
         str.read(reinterpret_cast<char *>(code.data()), fn.code_size);
 
-        in.function_indices.emplace(static_cast<strtab_index>(fn.name), in.functions.size());
-        in.functions.emplace_back(
-            in.id(std::string(&strtab[fn.name])),
-            std::string(&strtab[fn.signature]),
-            std::string(&strtab[fn.locals]),
+        function_indices.emplace(static_cast<strtab_index>(fn.name), functions.size());
+        functions.emplace_back(
+            id(std::string(&vstrtab[fn.name])),
+            std::string(&vstrtab[fn.signature]),
+            std::string(&vstrtab[fn.locals]),
             0, /* frame_size -- calculated later */
             0, /* args_size -- calculated later */
             std::move(code)
         );
     }
 
-    functions.clear();
-    strtab.clear();
+    vfunctions.clear();
+    vstrtab.clear();
 
     /* 5. Validate code */
 
-    const char *erc = validate_functions(in);
+    const char *erc = validate_functions(*this);
     if (erc) throw std::invalid_argument(erc);
 
-    return in;
 }
 
