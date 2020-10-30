@@ -32,7 +32,7 @@ struct opdesc {
 };
 
 static std::vector<opdesc> insns {
-    {"hlt", ins_plain},   {"ld.i", ins_local, 'i'},
+    {"hlt", ins_plain, 0},   {"ld.i", ins_local, 'i'},
     {"sta.i", ins_local, 'i'},    {"ld.i", ins_global, 'i'},
     {"st.i", ins_global, 'i'},  {"ld.i", ins_const, 'i'},
     {"ld.i", ins_const, 'i'},   {"add.i", ins_plain, 'i'},
@@ -42,13 +42,13 @@ static std::vector<opdesc> insns {
     {"jlz.i", ins_jump, 'i'},   {"call.i", ins_call, 'i'},
     {"dup.i", ins_plain, 'i'},  {"drop.i", ins_plain, 'i'},
     {"tol.i", ins_plain, 'i'},   {"tof.i", ins_plain, 'i'},
-    {"tod.i", ins_plain, 'i'},  {"undef.0", ins_plain},
-    {"undef.1", ins_plain}, {"inc.i", ins_plain, 'i'},
+    {"tod.i", ins_plain, 'i'},  {"undef.0", ins_plain, 0},
+    {"undef.1", ins_plain, 0}, {"inc.i", ins_plain, 'i'},
     {"rem.i", ins_plain, 'i'},  {"and.i", ins_plain, 'i'},
     {"shr.i", ins_plain, 'i'},   {"xor.i", ins_plain, 'i'},
     {"jle.i", ins_jump, 'i'},  {"je.i", ins_jump, 'i'},
     {"jz.i", ins_jump, 'i'},    {"ret.i", ins_plain, 'i'},
-    {"jmp", ins_jump},  {"ld.l", ins_local, 'l'},
+    {"jmp", ins_jump, 0},  {"ld.l", ins_local, 'l'},
     {"sta.l", ins_local, 'l'},     {"ld.l", ins_global, 'l'},
     {"st.l", ins_global, 'l'},   {"ld.l", ins_const, 'l'},
     {"ld.l", ins_const, 'l'},   {"add.l", ins_plain, 'l'},
@@ -58,8 +58,8 @@ static std::vector<opdesc> insns {
     {"jlz.l", ins_jump, 'l'},   {"call.l", ins_call, 'l'},
     {"dup.l", ins_plain, 'l'},  {"drop.l", ins_plain, 'l'},
     {"toi.l", ins_plain, 'l'},   {"tof.l", ins_plain, 'l'},
-    {"tod.l", ins_plain, 'l'},  {"undef.2", ins_plain},
-    {"undef.3", ins_plain}, {"inc.l", ins_plain, 'l'},
+    {"tod.l", ins_plain, 'l'},  {"undef.2", ins_plain, 0},
+    {"undef.3", ins_plain, 0}, {"inc.l", ins_plain, 'l'},
     {"rem.l", ins_plain, 'l'},  {"and.l", ins_plain, 'l'},
     {"shr.l", ins_plain, 'l'},   {"xor.l", ins_plain, 'l'},
     {"jle.l", ins_jump, 'l'},  {"je.l", ins_jump, 'l'},
@@ -67,31 +67,31 @@ static std::vector<opdesc> insns {
     {"call.f", ins_call, 'f'}, {"ld.f", ins_local, 'f'},
     {"sta.f", ins_local, 'f'},   {"ld.f", ins_global, 'f'},
     {"st.f", ins_global, 'f'},   {"ld.f", ins_const, 'f'},
-    {"ret", ins_plain},     {"add.f", ins_plain, 'f'},
+    {"ret", ins_plain, 0},     {"add.f", ins_plain, 'f'},
     {"sub.f", ins_plain, 'f'},  {"mul.f", ins_plain, 'f'},
     {"div.f", ins_plain, 'f'},   {"neg.f", ins_plain, 'f'},
     {"jl.f", ins_jump, 'f'},   {"jg.f", ins_jump, 'f'},
     {"jgz.i", ins_jump, 'i'},   {"call.d", ins_call, 'd'},
     {"dup2.i", ins_plain, 'i'}, {"drop2.i", ins_plain, 'i'},
     {"tol.f", ins_plain, 'f'},   {"toi.f", ins_plain, 'f'},
-    {"tod.f", ins_plain, 'f'},  {"undef.4", ins_plain},
-    {"undef.5", ins_plain}, {"dec.i", ins_plain, 'i'},
+    {"tod.f", ins_plain, 'f'},  {"undef.4", ins_plain, 0},
+    {"undef.5", ins_plain, 0}, {"dec.i", ins_plain, 'i'},
     {"not.i", ins_plain, 'i'},  {"or.i", ins_plain, 'i'},
     {"shl.i", ins_plain, 'i'},   {"sar.i", ins_plain, 'i'},
     {"jge.i", ins_jump, 'i'},  {"jne.i", ins_jump, 'i'},
     {"jnz.i", ins_jump, 'i'},   {"ret.f", ins_plain, 'f'},
-    {"tcall", ins_call}, {"ld.d", ins_local, 'd'},
+    {"tcall", ins_call, 0}, {"ld.d", ins_local, 'd'},
     {"sta.d", ins_local, 'd'},    {"ld.d", ins_global, 'd'},
     {"st.d", ins_global, 'd'},   {"ld.d", ins_const, 'd'},
-    {"pwide", ins_wide},   {"add.d", ins_plain, 'd'},
+    {"pwide", ins_wide, 0},   {"add.d", ins_plain, 'd'},
     {"sub.d", ins_plain, 'd'},  {"mul.d", ins_plain, 'd'},
     {"div.d", ins_plain, 'd'},   {"neg.d", ins_plain, 'd'},
     {"jl.d", ins_jump, 'd'},   {"jg.d", ins_jump, 'd'},
-    {"jgz.l", ins_jump, 'l'},   {"call", ins_call},
+    {"jgz.l", ins_jump, 'l'},   {"call", ins_call, 0},
     {"dup2.l", ins_plain, 'l'}, {"drop2.l", ins_plain, 'l'},
     {"tol.d", ins_plain, 'd'},   {"tof.d", ins_plain, 'd'},
-    {"toi.d", ins_plain, 'd'},  {"undef.6", ins_plain},
-    {"undef.7", ins_plain}, {"dec.l", ins_plain, 'l'},
+    {"toi.d", ins_plain, 'd'},  {"undef.6", ins_plain, 0},
+    {"undef.7", ins_plain, 0}, {"dec.l", ins_plain, 'l'},
     {"not.l", ins_plain, 'l'},  {"or.l", ins_plain, 'l'},
     {"shl.l", ins_plain, 'l'},   {"sar.l", ins_plain, 'l'},
     {"jge.l", ins_jump, 'l'},  {"jne.l", ins_jump, 'l'},
@@ -141,7 +141,10 @@ void disas_code(const object_file &obj, const function &fn, std::vector<uint8_t>
             case op_ldc_d:
                 op += sizeof(double);
                 break;
+            default:
+                throw std::logic_error("Oops");
             }
+            break;
         case ins_wide:
             wide = true;
         }
@@ -215,6 +218,7 @@ void disas_code(const object_file &obj, const function &fn, std::vector<uint8_t>
                 std::cout << " $" << cons;
             } break;
             }
+            break;
         case ins_wide:
             wide = true;
         }

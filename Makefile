@@ -1,23 +1,23 @@
 CXXFLAGS += -std=c++14 -Wall -Wextra -Wpedantic -Wno-unused-parameter
 LDLIBS += -lstdc++
 
-VM := xsvm
-VMOBJ := ofile.o vm.o
+VM ?= xsvm
+VMOBJ ?= ofile.o vm.o
 ASM := xsas
-ASMOBJ := ofile.o as.o
-DIS := xsdis
+ASMOBJ ?= ofile.o as.o
+DIS ?= xsdis
 DISOBJ := ofile.o disas.o
 
 ifdef NDEBUG
-CXXFLAGS += -DNDEBUG=$(NDEBUG)
+CXXFLAGS += -DNDEBUG=$(NDEBUG) -O2
 else
 CXXFLAGS += -Og
 endif
 
-all: $(VM) $(ASM)
+all: $(VM) $(ASM) $(DIS)
 
 clean:
-	rm -rf *.o $(VM) $(ASM)
+	rm -rf *.o $(VM) $(ASM) $(DIS)
 	
 $(VM): $(VMOBJ)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(VMOBJ) $(LDLIBS) -o $@

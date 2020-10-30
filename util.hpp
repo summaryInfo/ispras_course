@@ -15,7 +15,7 @@ namespace util {
     template<typename T, typename It>
     std::enable_if_t<std::is_scalar<T>::value, T> read_at(It addr) {
         T tmp{};
-        std::memcpy(&tmp, addr, sizeof(T));
+        std::memcpy(&tmp, &*addr, sizeof(T));
         return tmp;
     }
 
