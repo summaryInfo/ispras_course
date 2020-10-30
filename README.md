@@ -5,6 +5,14 @@ Xtra small virtual machine
 
 This an implementation of simple virtual machine with some infrastructure (assembler and disassembler).
 
+## Features
+
+* Functions
+* Strict typing (int, long, float and double types)
+* Builtin function support
+* Code validation
+* Local and global variables
+
 ## Dependencies
 
 * GNU make
