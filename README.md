@@ -16,6 +16,8 @@ To compile programs:
 
     make
 
-To run (interactive):
+Usage:
 
-    make run
+    ./xsas test.xso test.xs
+    ./xsdis test.xso test2.xs
+    ./xsvm test.xso
