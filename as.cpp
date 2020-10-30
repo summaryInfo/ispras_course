@@ -181,7 +181,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
     object_file out;
 
     /* Emit call instruction */
-    auto compile_call =  [&out](uint32_t cfun, uint8_t op, std::string id) -> const char * {
+    auto compile_call =  [&out](uint32_t cfun, uint8_t op, std::string &&id) -> const char * {
         uint32_t idx = out.id(std::move(id));
         auto fun_idx = out.function_indices.find(idx);
         /* If function is not defined yet we should insert dummy
@@ -397,7 +397,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
         /* Read identifier */
         auto consume_id = [&](std::string &id, std::string::iterator &it, const char *additional_term) {
             id.clear();
-            while (*it && (std::isalnum(*it) || *it == '.')) id.push_back(*it++);
+            while (*it && (std::isalnum(*it) || *it == '.' || *it == '_')) id.push_back(*it++);
             if (!id.length() || !(!*it || std::isspace(*it) || std::strchr(additional_term,*it))) {
                 print_line_error("Malformed identifier", file, line_n, line, it);
                 throw std::logic_error("Malformed id");
@@ -503,6 +503,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
                 if (res == out.function_indices.end()) {
                     /* new function */
                     cfun = out.functions.size();
+                    out.function_indices.emplace(id, cfun);
                     out.functions.emplace_back();
                     out.functions.back().name = id;
                 } else if (!out.functions[res->second].code.size()) {
@@ -549,7 +550,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
             switch(insn->second.insn_class) {
             case ins_call: {
                 consume_id(id, it, "#");
-                auto *erc = compile_call(cfun, insn->second.code, id);
+                auto *erc = compile_call(cfun, insn->second.code, std::move(id));
                 if (erc) {
                     print_line_error(erc, file, line_n, line, it);
                     throw std::out_of_range(erc);

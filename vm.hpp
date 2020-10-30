@@ -10,10 +10,12 @@
 #include <map>
 #include <vector>
 
+using native_function = void(*)(class vm_state&);
 
 /** Virtual machine state */
 class vm_state {
     std::vector<uint8_t> stack;
+    std::map<uint32_t, native_function> nfunc;
 
     // TODO For now globals array serves the purpose of memory
     /* std::vector<uint8_t> memory; */
@@ -27,6 +29,7 @@ class vm_state {
     const uint8_t *ip{}; /* instruction pointer register */
     bool wide_flag; /* wide prefix is active */
 
+
 public:
     /**
      * Evaluate a function call.
@@ -34,12 +37,8 @@ public:
      */
     void eval(const std::string &fun);
 
-    /* Copying is prohibited */
-    vm_state(std::size_t stack_size, std::string path) : stack(stack_size * sizeof(uint32_t)) {
-        std::ifstream fstr(path);
-        object.read(fstr);
-        sp = &*stack.end();
-    }
+    vm_state(std::size_t stack_size, std::string path);
+
     /* Copying is prohibited */
     vm_state(const vm_state &) = delete;
     vm_state &operator=(const vm_state &)= delete;
@@ -88,7 +87,7 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value, T> pop() {
-        T tmp = util::read_next<T>(ip);
+        T tmp = util::read_next<T>(sp);
         return tmp;
     }
 
@@ -100,7 +99,7 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value, T> top() {
-        return util::read_at<T>(ip);
+        return util::read_at<T>(sp);
     }
 
     /**
@@ -198,13 +197,14 @@ public:
      * @param[in] idx functions array index
      */
     void invoke(uint32_t idx) {
-        push(ip_fun);
-        push(ip);
-        push(*&fp);
+        push<function *>(ip_fun);
+        push<const uint8_t *>(ip);
+        push<uint8_t *>(*&fp);
 
         fp = sp;
         ip_fun = &object.functions[idx];
         ip = object.functions[idx].code.data();
+
 
         /* Allocate space on stack for locals */
         auto fr_size = object.functions[idx].frame_size;
@@ -212,6 +212,14 @@ public:
 
         /* Frame should be initially zeroed*/
         std::memset(sp, 0, fr_size);
+
+        if (!ip_fun->code.size()) {
+            /* This is native function */
+            auto nf = nfunc.find(idx);
+            if (nf == nfunc.end())
+                throw std::logic_error("Undefined native function");
+            nf->second(*this);
+        }
     }
 
     /**
@@ -225,12 +233,12 @@ public:
 
         fp = pop<uint8_t *>();
         ip = pop<const uint8_t *>();
-        ip_fun = pop<function*>();
+        ip_fun = pop<function *>();
 
         /* Arguments are popped from stack
          * by caller like in stdcall
          * (and no support for vargargs) */
-        ip += args;
+        sp += args;
     }
 
     /**

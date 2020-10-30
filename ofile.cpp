@@ -135,7 +135,6 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
     bool wide{};
     while (op < env.end) {
         wide |= *op == op_pwide;
-        std::cout << "X" << std::hex << (uint32_t)*op << std::endl;
         do {
             auto &ref = env.anno[op - env.fun->code.begin()];
             if (ref) {
@@ -147,7 +146,6 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         } while (*op == op_pwide && ++op < env.end);
 
         uint8_t cmd = *op++;
-        std::cout << "fff " << (uint32_t)cmd << std::endl;
 
         auto check_jump = [&]() -> bool {
             if (env.end - op < 1 + wide) {
@@ -266,9 +264,9 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             }
             uint16_t disp = util::read_either<uint16_t, uint8_t>(op, wide);
             wide = false;
-            auto res = env.fun->signature[env.fun->signature.find(')') + 1] == *after &&
-                       disp < env.obj->functions.size() &&
-                       check(env.obj->functions[disp].signature.data());
+            auto res = disp < env.obj->functions.size() &&
+                       env.fun->signature[env.fun[disp].signature.find(')') + 1] == *after &&
+                       check(env.obj->functions[disp].signature.c_str());
             if (!res) std::cerr << "Function call type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
             return res;
         };
@@ -552,8 +550,13 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             return false;
         }
     }
-    std::cout << "Code is unterminated" << std::endl;
-    return false;
+    if (env.fun->code.size()) {
+        std::cout << "Code is unterminated" << std::endl;
+        return false;
+    } else {
+        /* Native function, checked in runtime */
+        return true;
+    }
 }
 
 
@@ -688,9 +691,6 @@ void object_file::read(std::istream &str) {
 
         if (fn.code_size + fn.code_offset > pos)
             throw std::invalid_argument("Function body is out of bounds");
-        // TODO
-        if (!fn.code_size)
-            throw std::invalid_argument("Extern functions are not supported yet");
         if (fn.code_size > std::numeric_limits<uint32_t>::max())
             throw std::invalid_argument("Code is too big");
 

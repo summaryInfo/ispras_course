@@ -307,6 +307,37 @@ void vm_state::eval(const std::string &fun) {
     }
 }
 
+static void print_i(vm_state &vm) {
+    std::cout << vm.get_local<int32_t>(0) << std::endl;
+    vm.ret();
+    vm.push(0);
+}
+static void scan_i(vm_state &vm) {
+    int32_t i{};
+    std::cin >> i;
+    vm.ret();
+    vm.push(i);
+}
+
+vm_state::vm_state(std::size_t stack_size, std::string path) : stack(stack_size * sizeof(uint32_t)) {
+    std::ifstream fstr(path);
+    object.read(fstr);
+    sp = &*stack.end();
+
+    auto defnative = [&](native_function f, const char *sig, const char *str) {
+        auto pidx = object.function_indices.find(object.id(str));
+        if (pidx != object.function_indices.end()) {
+            if (object.functions[pidx->second].signature != sig)
+                throw std::logic_error("Native function interface violation");
+            nfunc.emplace(pidx->second, print_i);
+        }
+    };
+
+    /* It should return nothing but theres currently no way to define void function in xsas */
+    defnative(print_i, "(i)i", "print_i");
+    defnative(scan_i, "()i", "scan_i");
+}
+
 int main(int argc, char **argv) {
     if (argc < 2 || (argc > 1 && !std::strcmp(argv[1], "-h"))) {
         std::cout << "Usage:\n" << std::endl;
