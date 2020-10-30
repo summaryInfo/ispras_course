@@ -12,8 +12,8 @@ namespace util {
      * 
      *  @return read value
      */
-    template<typename T>
-    std::enable_if_t<std::is_scalar<T>::value, T> read_at(const uint8_t *addr) {
+    template<typename T, typename It>
+    std::enable_if_t<std::is_scalar<T>::value, T> read_at(It addr) {
         T tmp{};
         std::memcpy(&tmp, addr, sizeof(T));
         return tmp;
@@ -25,8 +25,8 @@ namespace util {
      * 
      *  @return read value
      */
-    template<typename T>
-    std::enable_if_t<std::is_scalar<T>::value, T> read_next(const uint8_t *&addr) {
+    template<typename T, typename It>
+    std::enable_if_t<std::is_scalar<T>::value, T> read_next(It &addr) {
         T tmp = read_at<T>(addr);
         addr += sizeof(T);
         return tmp;
@@ -38,8 +38,8 @@ namespace util {
      * 
      *  @return read value
      */
-    template<typename T>
-    std::enable_if_t<std::is_scalar<T>::value, T> read_prev(const uint8_t *&addr) {
+    template<typename T, typename It>
+    std::enable_if_t<std::is_scalar<T>::value, T> read_prev(It &addr) {
         addr -= sizeof(T);
         return read_at<T>(addr);
     }
@@ -70,8 +70,8 @@ namespace util {
      * 
      *  @return read value
      */
-    template<typename T, typename U = int8_t>
-    std::enable_if_t<std::is_scalar<T>::value, decltype(T{}+U{})> read_either(const uint8_t *&addr, bool wide) {
+    template<typename T, typename U = int8_t, typename It>
+    std::enable_if_t<std::is_scalar<T>::value, decltype(T{}+U{})> read_either(It &addr, bool wide) {
         return wide ? read_next<T>(addr) : read_next<U>(addr);
     }
 
