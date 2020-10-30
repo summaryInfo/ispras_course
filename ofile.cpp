@@ -132,26 +132,36 @@ struct check_env {
  */
 bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector<uint8_t>::iterator op) {
 
+    bool wide{};
     while (op < env.end) {
-        bool wide = *op == op_pwide;
-        uint8_t cmd{};
+        wide |= *op == op_pwide;
+        std::cout << "X" << std::hex << (uint32_t)*op << std::endl;
         do {
             auto &ref = env.anno[op - env.fun->code.begin()];
-            if (ref) return ref == state;
+            if (ref) {
+                auto res = ref == state;
+                if (!res) std::cerr << "Wrong type interface after jump" << std::endl;
+                return res;
+            }
             ref = state;
-            cmd = *++op;
-        } while (*op == op_pwide && op < env.end);
+        } while (*op == op_pwide && ++op < env.end);
+
+        uint8_t cmd = *op++;
+        std::cout << "fff " << (uint32_t)cmd << std::endl;
 
         auto check_jump = [&]() -> bool {
-            const uint8_t *tmp = &*op;
-            auto disp = util::read_either<int16_t>(tmp, wide);
-            wide = 0;
-            if (!(op - env.fun->code.begin() > disp && op + disp < env.end)) {
+            if (env.end - op < 1 + wide) {
+                std::cerr << "Unterminated instruction" << std::endl;
+                return false;
+            }
+            auto disp = util::read_either<int16_t>(op, wide);
+            wide = false;
+            if (!(op - env.fun->code.begin() > -disp && op + disp < env.end)) {
                 std::cerr << "Jump is out of bounds" << std::endl;
                 return false;
             }
-            return trace_types(env, state, op + disp);
-                       
+            auto x = trace_types(env, state, op + disp);
+            return x;
         };
 
         auto check = [&](const char *sig) -> bool {
@@ -183,21 +193,24 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         };
 
         auto check_local = [&](char type) -> bool {
-            const uint8_t *tmp = &*op;
-            int16_t disp = util::read_either<int16_t>(tmp, wide);
-            wide = 0;
+            if (env.end - op < 1 + wide) {
+                std::cerr << "Unterminated instruction" << std::endl;
+                return false;
+            }
+            int16_t disp = util::read_either<int16_t>(op, wide);
+            wide = false;
             if (disp >= 0) /* argument */ {
                 auto arg_s = env.fun->signature.find('(');
                 auto arg_e = env.fun->signature.find(')');
                 if (arg_s == std::string::npos || arg_e == std::string::npos)
-                    throw std::logic_error("Oops");
+                    throw std::logic_error("Oops 1");
 
                 /* We should use linear search and not just
                  * indexing because local have different sizes */
 
                 std::size_t offset{}, i{arg_e};
-                while (offset < std::size_t(disp) && i > arg_s) {
-                    switch(env.fun->signature[--i]) {
+                while (offset < std::size_t(disp) && --i > arg_s) {
+                    switch(env.fun->signature[i]) {
                     case 'l': case 'd':
                         offset++;
                         [[fallthrough]];
@@ -205,16 +218,15 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                         offset++;
                         break;
                     default:
-                        throw std::logic_error("Oops");
+                        throw std::logic_error("Oops 2");
                     }
                 }
-                auto res = i > arg_s && offset == std::size_t(disp) &&
-                       env.fun->signature[i - 1] == type;
+                auto res = i > arg_s && offset == std::size_t(disp) && env.fun->signature[i - 1] == type;
                 if (!res) std::cerr << "Parameter type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
                 return res;
             } else /* local */ {
                 std::size_t offset{}, i{};
-                while (offset < std::size_t(1 - disp) && i < env.fun->locals.size()) {
+                while (offset < std::size_t(-1 - disp) && i < env.fun->locals.size()) {
                     switch(env.fun->locals[i++]) {
                     case 'l': case 'd':
                         offset++;
@@ -223,11 +235,11 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                         offset++;
                         break;
                     default:
-                        throw std::logic_error("Oops");
+                        throw std::logic_error("Oops 3");
                     }
                 }
                 auto res = i < env.fun->locals.size() &&
-                           offset == std::size_t(1 - disp) &&
+                           offset == std::size_t(-1 - disp) &&
                            env.fun->locals[i] == type;
                 if (!res) std::cerr << "Local variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
                 return res;
@@ -235,9 +247,12 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         };
 
         auto check_global = [&](char type) -> bool {
-            const uint8_t *tmp = &*op;
-            uint16_t disp = util::read_either<uint16_t, uint8_t>(tmp, wide);
-            wide = 0;
+            if (env.end - op < 1 + wide) {
+                std::cerr << "Unterminated instruction" << std::endl;
+                return false;
+            }
+            uint16_t disp = util::read_either<uint16_t, uint8_t>(op, wide);
+            wide = false;
             auto res = disp < env.obj->globals.size() &&
                        env.obj->globals[disp].type == type;
             if (!res) std::cerr << "Global variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
@@ -245,14 +260,19 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         };
 
         auto check_call = [&](const char *after) -> bool {
-            const uint8_t *tmp = &*op;
-            uint16_t disp = util::read_either<uint16_t, uint8_t>(tmp, wide);
-            wide = 0;
-            auto res = disp < env.obj->functions.size() &&
+            if (env.end - op < 1 + wide) {
+                std::cerr << "Unterminated instruction" << std::endl;
+                return false;
+            }
+            uint16_t disp = util::read_either<uint16_t, uint8_t>(op, wide);
+            wide = false;
+            auto res = env.fun->signature[env.fun->signature.find(')') + 1] == *after &&
+                       disp < env.obj->functions.size() &&
                        check(env.obj->functions[disp].signature.data());
             if (!res) std::cerr << "Function call type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
             return res;
         };
+
 
         switch(cmd) {
         case op_je_i: case op_jge_i:
@@ -494,23 +514,18 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_call_:
             if (!check_call("")) return false;
-            op += 1 + wide;
             break;
         case op_call_d:
             if (!check_call("d")) return false;
-            op += 1 + wide;
             break;
         case op_call_f:
             if (!check_call("f")) return false;
-            op += 1 + wide;
             break;
         case op_call_i:
             if (!check_call("i")) return false;
-            op += 1 + wide;
             break;
         case op_call_l:
             if (!check_call("l")) return false;
-            op += 1 + wide;
             break;
         case op_tcall_:
             throw std::logic_error("Unimplemented");
@@ -537,7 +552,8 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             return false;
         }
     }
-    return true;
+    std::cout << "Code is unterminated" << std::endl;
+    return false;
 }
 
 

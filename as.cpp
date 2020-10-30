@@ -486,7 +486,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
                     throw std::logic_error("Out of scope");
                 }
                 args_sig.push_back(typid[0]);
-                locals.emplace(std::move(name), args_sig.size());
+                locals.emplace(std::move(name), args_sig.size() - 1);
             } else if (id == "function") {
                 if (cfun != no_function) {
                     auto erc = emit_function(cfun);
