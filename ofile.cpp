@@ -119,7 +119,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         uint8_t cmd{};
         do {
             auto &ref = env.anno[op - env.fun->code.begin()];
-            if (ref && ref != state) return false;
+            if (ref) return ref == state;
             ref = state;
             cmd = *op++;
         } while (*op == op_pwide);
@@ -132,7 +132,23 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         };
 
         auto check = [&](const char *sig) -> bool {
-            // TODO
+            /* Parse signature and compare with stack state */
+            auto arg_s = std::strchr(sig, '(');
+            auto arg_e = std::strchr(sig, ')');
+            if (!arg_e || arg_s >= arg_e) throw std::logic_error("Oops");
+
+            /* Pop new types */
+            auto it = arg_e - 1;
+            for (; it > arg_s && state; it--, state = state->next)
+                if (*it != state->type) return false;
+
+            /* Check stack underflow */
+            if (!state && it > arg_s) return false;
+
+            /* Push new types */
+            for (auto it = arg_e + 1; *it; it++)
+                state = std::make_shared<stack_state>(state, *it);
+
             return false;
         };
 
@@ -140,10 +156,47 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             const uint8_t *tmp = &*op;
             int16_t disp = util::read_either<int16_t>(tmp, wide);
             wide = 0;
-            if (disp >= 0) {
-                // TODO
-            } else {
-                // TODO
+            if (disp >= 0) /* argument */ {
+                auto arg_s = env.fun->signature.find('(');
+                auto arg_e = env.fun->signature.find(')');
+                if (arg_s == std::string::npos || arg_e == std::string::npos)
+                    throw std::logic_error("Oops");
+
+                /* We should use linear search and not just
+                 * indexing because local have different sizes */
+
+                std::size_t offset{}, i{arg_e};
+                while (offset < std::size_t(disp) && i > arg_s) {
+                    switch(env.fun->signature[--i]) {
+                    case 'l': case 'd':
+                    	offset++;
+                    	[[fallthrough]];
+                    case 'i': case 'f':
+                        offset++;
+                    	break;
+                    default:
+                        throw std::logic_error("Oops");
+                    }
+                }
+                return i > arg_s && offset == std::size_t(disp) &&
+                       env.fun->signature[i - 1] == type;
+            } else /* local */ {
+                std::size_t offset{}, i{};
+                while (offset < std::size_t(1 - disp) && i < env.fun->locals.size()) {
+                    switch(env.fun->locals[i++]) {
+                    case 'l': case 'd':
+                    	offset++;
+                    	[[fallthrough]];
+                    case 'i': case 'f':
+                        offset++;
+                    	break;
+                    default:
+                        throw std::logic_error("Oops");
+                    }
+                }
+                return i < env.fun->locals.size() &&
+                       offset == std::size_t(1 - disp) &&
+                       env.fun->locals[i] == type;
             }
         };
 
