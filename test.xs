@@ -17,3 +17,5 @@ label:
     ret.i
 .function int test2
     ret.i
+.function int test3
+    ld.i $0
