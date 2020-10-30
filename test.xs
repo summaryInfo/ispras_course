@@ -16,6 +16,9 @@ label:
     ld.i $0
     ret.i
 .function int test2
+.param int p
+    ld.i p
     ret.i
 .function int test3
     ld.i $0
+    ret.i
