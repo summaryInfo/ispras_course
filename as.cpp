@@ -570,7 +570,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    auto obj = compile_functions(argc > 2 ? argv[1] : nullptr);
+    auto obj = compile_functions(argc > 2 ? argv[2] : nullptr);
 
     std::ofstream outstr(argv[1]);
     obj.write(outstr);
