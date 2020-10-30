@@ -678,14 +678,15 @@ void object_file::read(std::istream &str) {
         if (fn.code_size > std::numeric_limits<uint32_t>::max())
             throw std::invalid_argument("Code is too big");
 
-
         std::vector<uint8_t> code(fn.code_size);
         str.seekg(fn.code_offset);
         str.read(reinterpret_cast<char *>(code.data()), fn.code_size);
 
+        fn.name = id(std::string(&vstrtab[fn.name]));
+
         function_indices.emplace(static_cast<strtab_index>(fn.name), functions.size());
         functions.emplace_back(
-            id(std::string(&vstrtab[fn.name])),
+            (uint32_t)fn.name,
             std::string(&vstrtab[fn.signature]),
             std::string(&vstrtab[fn.locals]),
             0, /* frame_size -- calculated later */
