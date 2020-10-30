@@ -1,3 +1,6 @@
+# External funtion:
+.function int print_i
+.param int num
 # This is a test
 .function int main
 .local int a
@@ -11,8 +14,13 @@
     dup.i
     st.i a
     call.i test2
+    call.i test2
+    call.i print_i
+    call.i test2
     ret.i
 label:
+    ld.i $-3
+    call.i print_i
     ld.i $0
     ret.i
 .function int test2
