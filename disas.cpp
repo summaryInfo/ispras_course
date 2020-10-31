@@ -10,6 +10,8 @@ inline static const char *typid_to_type(char id) {
     case 'l': return "long";
     case 'f': return "float";
     case 'd': return "double";
+    case ')':
+    case 0: return "void";
     default:
         throw std::logic_error("Oops 1");
     }

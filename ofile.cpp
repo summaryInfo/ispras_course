@@ -264,10 +264,14 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             }
             uint16_t disp = util::read_either<uint16_t, uint8_t>(op, wide);
             wide = false;
+
+            auto &sig = env.obj->functions[disp].signature;
             auto res = disp < env.obj->functions.size() &&
-                       env.fun->signature[env.fun[disp].signature.find(')') + 1] == *after &&
-                       check(env.obj->functions[disp].signature.c_str());
-            if (!res) std::cerr << "Function call type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
+                       sig[sig.find(')') + 1] == *after && check(sig.data());
+            if (!res) {
+                std::cerr << "Function call type interface violation of "
+                          << std::hex << (uint32_t)cmd << std::endl;
+            }
             return res;
         };
 
@@ -585,11 +589,11 @@ static const char *validate_functions(object_file &obj) {
             return "Malformed signature";
 
         auto clo = fn.signature.find(')', 1);
-        if (clo == fn.signature.npos || clo + 2 != fn.signature.size())
+        if (clo == fn.signature.npos || fn.signature.size() - clo > 2)
             return "Malformed signature";
 
         char return_sig = fn.signature[clo + 1];
-        if (!std::strchr("ilfd", return_sig))
+        if (!std::strchr("ilfd", return_sig) && return_sig)
             return "Unknown return type in signature";
 
         std::string arg_sig(fn.signature.substr(1, clo - 1));

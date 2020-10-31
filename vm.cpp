@@ -309,8 +309,6 @@ void vm_state::eval(const std::string &fun) {
 
 static void print_i(vm_state &vm) {
     std::cout << vm.get_local<int32_t>(0) << std::endl;
-    vm.ret();
-    vm.push(0);
 }
 static void scan_i(vm_state &vm) {
     int32_t i{};
@@ -333,8 +331,7 @@ vm_state::vm_state(std::size_t stack_size, std::string path) : stack(stack_size 
         }
     };
 
-    /* It should return nothing but theres currently no way to define void function in xsas */
-    defnative(print_i, "(i)i", "print_i");
+    defnative(print_i, "(i)", "print_i");
     defnative(scan_i, "()i", "scan_i");
 }
 

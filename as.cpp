@@ -377,7 +377,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
     /* Emit finished function*/
     auto emit_function = [&](uint32_t cfun) -> const char * {
         if (!jumps.empty()) return "Unresolved jumps";
-        out.functions[cfun].signature = '(' + args_sig + ')' + return_sig;
+        out.functions[cfun].signature = return_sig ? '(' + args_sig + ')' + return_sig : '(' + args_sig + ')';
         out.functions[cfun].locals = std::move(locals_sig);
 
         /* Clear all temporary info */
@@ -424,7 +424,8 @@ object_file compile_functions(const char *file, std::istream &istr) {
             /* read type */
             std::string typid;
             consume_id(typid, it, "");
-            if (typid != "int" && typid != "long" && typid != "float" && typid != "double") {
+            if (typid != "int" && typid != "long" && typid != "float" &&
+                typid != "double" && (id != "function" || typid != "void")) {
                 print_line_error("Unknown type", file, line_n, line, it);
                 throw std::logic_error("Wrong directive");
             }
@@ -496,7 +497,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
                     }
                 }
 
-                return_sig = typid[0];
+                return_sig = typid[0] == 'v' ? 0 : typid[0];
 
                 auto id = out.id(std::move(name));
                 auto res = out.function_indices.find(id);
