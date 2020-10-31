@@ -171,7 +171,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             /* Pop new types */
             auto it = arg_e - 1;
             for (; it > arg_s && state; it--, state = state->next)
-                if (*it != state->type) { std::cerr << "TTT" << *it << state->type << " " << std::hex << (uint32_t)op[-1] << std::endl; return false; }
+                if (*it != state->type) return false;
 
             /* Check stack underflow */
             if (!state && it > arg_s) {
