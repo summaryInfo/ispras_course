@@ -344,6 +344,11 @@ static void sqrt_d(vm_state &vm) {
 
 vm_state::vm_state(std::size_t stack_size, std::string path) {
     std::ifstream fstr(path);
+    if (!fstr.is_open()) {
+        std::cerr << "Cannot open file " << path << std::endl;
+        throw std::invalid_argument("Cannot open input file");
+    }
+
     stack.resize(stack_size*sizeof(uint32_t));
     object.read(fstr);
     sp = &*stack.end();

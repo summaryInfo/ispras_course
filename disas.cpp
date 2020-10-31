@@ -226,7 +226,7 @@ void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, 
     }
 }
 
-void disas_object(const object_file &obj, const char *file, std::ostream &ostr) {
+void disas_object(const object_file &obj, const std::string &file, std::ostream &ostr) {
     auto stab = obj.make_strtab();
 
     /* 1. Globals */
@@ -284,20 +284,36 @@ int main(int argc, char *argv[]) {
 
     if ((argc > 1 && !std::strcmp("-h", argv[1])) || argc < 2) {
         std::cout << "Usage:\n" << std::endl;
-        std::cout << "\t" << argv[0] << " <infile> [<outfile>]" << std::endl;
+        std::cout << "\t" << argv[0] << " <infile>.xso [<outfile>]" << std::endl;
+        std::cout << "Default value of <outfile> is <infile>.xs" << std::endl;
         return 0;
     }
 
-    std::ifstream str(argv[1], std::ios::binary);
+    std::ifstream str(argv[1], std::ios::binary | std::ios::in);
+    if (!str.is_open()) {
+        std::cerr << "Cannot open input file \"" << argv[1] << '"' << std::endl;
+        return EXIT_FAILURE;
+    }
     object_file obj;
     obj.read(str);
 
-    if (argc > 2) {
-        std::ofstream fstr(argv[2]);
-        disas_object(obj, argv[2], fstr);
+    std::string outfile;
+    if (argc < 3) {
+        outfile = argv[1];
+        if (outfile.size() > 3 && !outfile.compare(outfile.size() -
+               sizeof(XSO_EXT) + 1, sizeof(XSO_EXT) - 1, XSO_EXT)) {
+            outfile = outfile.substr(0, outfile.size() - sizeof(XSO_EXT) + 1);
+        }
+        outfile += XS_EXT;
     } else {
-        disas_object(obj, "<stdout>", std::cout);
+        outfile = argv[2];
     }
+    std::ofstream outstr(outfile, std::ios::out | std::ios::trunc);
+    if (!outstr.is_open()) {
+        std::cerr << "Cannot open output file \"" << outfile << '"' << std::endl;
+        return EXIT_FAILURE;
+    }
+    disas_object(obj, outfile, outstr);
 
     return 0;
 }

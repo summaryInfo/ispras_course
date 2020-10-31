@@ -224,3 +224,6 @@ enum insn {
     op_not_l = 0x78,  op_or_l = 0x79,    op_shl_l = 0x7A,   op_sar_l = 0x7B,
     op_jge_l = 0x7C,  op_jne_l = 0x7D,   op_jnz_l = 0x7E,   op_ret_d = 0x7F,
 };
+
+#define XSO_EXT ".xso"
+#define XS_EXT ".xs"

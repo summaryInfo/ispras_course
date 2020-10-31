@@ -629,20 +629,37 @@ int main(int argc, char *argv[]) {
 
     if ((argc > 1 && !std::strcmp("-h", argv[1])) || argc < 2) {
         std::cout << "Usage:\n" << std::endl;
-        std::cout << "\t" << argv[0] << " <outfile> [<infile>]" << std::endl;
-        std::cout << "Default value of <infile> is stdin" << std::endl;
+        std::cout << "\t" << argv[0] << " <infile>.xs [<outfile>]" << std::endl;
+        std::cout << "Default value of <outfile> <infile>.xso" << std::endl;
         return 0;
     }
 
     object_file obj;
-    if (argc > 2) {
-        std::ifstream fstr(argv[2]);
-        obj = compile_functions(argv[2], fstr);
+
+    std::ifstream fstr(argv[1]);
+    if (!fstr.is_open()) {
+        std::cerr << "Cannot open input file \"" << argv[1] << '"' << std::endl;
+        return EXIT_FAILURE;
+    }
+    obj = compile_functions(argv[1], fstr);
+
+    std::string outfile;
+    if (argc < 3) {
+        outfile = argv[1];
+        if (outfile.size() > 3 && !outfile.compare(outfile.size() -
+               sizeof(XS_EXT) + 1, sizeof(XS_EXT) - 1, XS_EXT)) {
+            outfile = outfile.substr(0, outfile.size() - sizeof(XS_EXT) + 1);
+        }
+        outfile += XSO_EXT;
     } else {
-        obj = compile_functions("<stdin>", std::cin);
+        outfile = argv[2];
+    }
+    std::ofstream outstr(outfile, std::ios::binary | std::ios::out | std::ios::trunc);
+    if (!outstr.is_open()) {
+        std::cerr << "Cannot open output file \"" << outfile << '"' << std::endl;
+        return EXIT_FAILURE;
     }
 
-    std::ofstream outstr(argv[1]);
     obj.write(outstr);
 
     return 0;

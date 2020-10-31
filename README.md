@@ -26,7 +26,7 @@ To compile programs:
 
 Usage:
 
-    ./xsas test.xso test.xs
+    ./xsas test.xs
     ./xsdis test.xso test2.xs
     ./xsvm test.xso
 
