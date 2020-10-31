@@ -1,6 +1,7 @@
 # External funtion:
 .function void print_i
 .param int num
+
 # This is a test
 .function int main
 .local int a
