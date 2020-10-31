@@ -170,12 +170,8 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
 
             /* Pop new types */
             auto it = arg_e - 1;
-            for (; it > arg_s && state; it--, state = state->next) {
-                if (*it != state->type) {
-                    std::cerr << "Type interface violation" << std::endl;
-                    return false;
-                }
-            }
+            for (; it > arg_s && state; it--, state = state->next)
+                if (*it != state->type) return false;
 
             /* Check stack underflow */
             if (!state && it > arg_s) {

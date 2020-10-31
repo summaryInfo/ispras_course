@@ -11,6 +11,8 @@
     ld.i b
     add.i # Comment here
     inc.i
+    ld.d $1.234
+    drop.l
     dup.i
     st.i a
     dup.i
