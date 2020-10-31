@@ -1,5 +1,5 @@
 CXXFLAGS += -std=c++14 -Wall -Wextra -Wpedantic -Wno-unused-parameter
-LDLIBS += -lstdc++
+LDLIBS += -lstdc++ -lm
 
 VM ?= xsvm
 VMOBJ ?= ofile.o vm.o
