@@ -340,7 +340,7 @@ vm_state::vm_state(std::size_t stack_size, std::string path) {
         if (pidx != object.function_indices.end()) {
             if (object.functions[pidx->second].signature != sig)
                 throw std::logic_error("Native function interface violation");
-            nfunc.emplace(pidx->second, print_i);
+            nfunc.emplace(pidx->second, f);
         }
     };
 
