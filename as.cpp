@@ -422,11 +422,13 @@ object_file compile_functions(const char *file, std::istream &istr) {
             float value = std::strtof(&*it, &end);
             if (!end || errno)  return "Wrong constant";
             else if (end == &*it) value = {};
+            else init = true;
             success = out.add_global(std::move(name), value, init, typid[0]);
         } else if (typid == "double") {
             double value = std::strtod(&*it, &end);
             if (!end || errno)  return "Wrong constant";
             else if (end == &*it) value = {};
+            else init = true;
             success = out.add_global(std::move(name), value, init, typid[0]);
         }
         if (!success) return "Redefinition of global with different type";
