@@ -388,6 +388,8 @@ object_file compile_functions(const char *file, std::istream &istr) {
         locals_sig.clear();
         args_sig.clear();
         labels.clear();
+        locals_offset = -1;
+        args_offset = 0;
 
         return nullptr;
     };

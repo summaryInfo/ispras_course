@@ -202,9 +202,9 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 /* We should use linear search and not just
                  * indexing because local have different sizes */
 
-                std::size_t offset{}, i{arg_s};
-                while (offset < std::size_t(disp) && ++i < arg_e) {
-                    switch(env.fun->signature[i]) {
+                std::size_t offset{}, i{arg_s + 1};
+                while (offset < std::size_t(disp) && i < arg_e) {
+                    switch(env.fun->signature[i++]) {
                     case 'l': case 'd':
                         offset++;
                         [[fallthrough]];
@@ -215,7 +215,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                         throw std::logic_error("Oops 2");
                     }
                 }
-                auto res = i > arg_s && offset == std::size_t(disp) && env.fun->signature[i + 1] == type;
+                auto res = i <= arg_e && offset == std::size_t(disp) && env.fun->signature[i] == type;
                 if (!res) std::cerr << "Parameter type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
                 return res;
             } else /* local */ {
