@@ -31,4 +31,7 @@
 *.out
 *.app
 
-solve
+xsas
+xsdis
+xsvm
+*.xso
