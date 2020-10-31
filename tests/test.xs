@@ -8,7 +8,7 @@
 .global int b 1
     ld.i $0
     jz.i label
-	ld.i $2
+    ld.i $2
     ld.i b
     add.i # Comment here
     inc.i
@@ -111,20 +111,20 @@ tt: ld.i $3
     ld.i $6
     ret.i
 case_0:
-	ld.i $0
+    ld.i $0
     ret.i
 case_1:
-	ld.i $1
+    ld.i $1
     ret.i
 case_2:
-	ld.i $2
+    ld.i $2
     ret.i
 case_3:
-	ld.i $3
+    ld.i $3
     ret.i
 case_4:
-	ld.i $4
+    ld.i $4
     ret.i
 case_5:
-	ld.i $5
+    ld.i $5
     ret.i

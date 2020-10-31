@@ -7,11 +7,11 @@
 .local double a
 .local double b
 .local double c
-	call.d scan_d
+    call.d scan_d
     st.d a
-	call.d scan_d
+    call.d scan_d
     st.d b
-	call.d scan_d
+    call.d scan_d
     st.d c
     ld.d b
     ld.d b
