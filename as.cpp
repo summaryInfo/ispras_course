@@ -628,7 +628,7 @@ int main(int argc, char *argv[]) {
         std::ifstream fstr(argv[2]);
         obj = compile_functions(argv[2], fstr);
     } else {
-        obj = compile_functions("<stdoin>", std::cin);
+        obj = compile_functions("<stdin>", std::cin);
     }
 
     std::ofstream outstr(argv[1]);
