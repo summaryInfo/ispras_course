@@ -30,11 +30,13 @@ template <typename T> void op_add(vm_state &vm, const uint8_t *&ip) {
 }
 
 template <typename T> void op_inc(vm_state &vm, const uint8_t *&ip) {
-    vm.push<T>(vm.pop<T>() + util::read_either<T, uint8_t>(ip, vm.get_wide()));
+    //vm.push<T>(vm.pop<T>() + util::read_either<T, uint8_t>(ip, vm.get_wide()));
+    vm.push<T>(vm.pop<T>() + 1);
 }
 
 template <typename T> void op_dec(vm_state &vm, const uint8_t *&ip) {
-    vm.push<T>(vm.pop<T>() - util::read_either<T, uint8_t>(ip, vm.get_wide()));
+    //vm.push<T>(vm.pop<T>() - util::read_either<T, uint8_t>(ip, vm.get_wide()));
+    vm.push<T>(vm.pop<T>() - 1);
 }
 
 template <typename T> void op_sub(vm_state &vm, const uint8_t *&ip) {
