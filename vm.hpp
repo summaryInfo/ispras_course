@@ -121,7 +121,7 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value, T> get_local(int32_t n) {
-        return util::read_at<T>(&*fp + n*sizeof(int32_t) + (n >= 0 ? 3*sizeof(void*) : -1*sizeof(uint32_t)));
+        return util::read_at<T>(&*fp + n*sizeof(int32_t) + (n >= 0 ? 3*sizeof(void*) : 0));
     }
 
     /**
@@ -132,7 +132,7 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value> set_local(std::int32_t n, T value) {
-        util::write_at<T>(&*fp + n*sizeof(int32_t) + (n >= 0 ? 3*sizeof(void*) : -1*sizeof(uint32_t)), value);
+        util::write_at<T>(&*fp + n*sizeof(int32_t) + (n >= 0 ? 3*sizeof(void*) : 0), value);
     }
 
     /**
