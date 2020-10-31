@@ -356,7 +356,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
         if (range.first != jumps.end()) {
             /* and resolve jumps */
             for (auto itr = range.first; itr != range.second; itr++) {
-                int32_t disp = off - itr->second + long_jump_len;
+                int32_t disp = off - itr->second - long_jump_len;
                 if (disp <= std::numeric_limits<int16_t>::max() &&
                     disp >= std::numeric_limits<int16_t>::min()) {
                     int16_t d16 = disp;

@@ -154,7 +154,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             }
             auto disp = util::read_either<int16_t>(op, wide);
             wide = false;
-            if (!(op - env.fun->code.begin() > -disp && op + disp < env.end)) {
+            if ((disp < 0 && op + disp < env.fun->code.begin()) || (disp > 0 && op + disp >= env.end)) {
                 std::cerr << "Jump is out of bounds" << std::endl;
                 return false;
             }
