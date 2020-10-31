@@ -34,3 +34,44 @@ label:
 .function int test3
     ld.i $0
     ret.i
+.function int switch
+.param int op
+    ld.i op
+    dup.i
+    ld.i $0
+    je.i case_0
+    dup.i
+    ld.i $1
+    je.i case_1
+    dup.i
+    ld.i $2
+    je.i case_2
+    dup.i
+tt: ld.i $3
+    je.i case_3
+    dup.i
+    ld.i $4
+    je.i case_4
+    dup.i
+    ld.i $5
+    je.i case_5
+    ld.i $6
+    ret.i
+case_0:
+	ld.i $0
+    ret.i
+case_1:
+	ld.i $1
+    ret.i
+case_2:
+	ld.i $2
+    ret.i
+case_3:
+	ld.i $3
+    ret.i
+case_4:
+	ld.i $4
+    ret.i
+case_5:
+	ld.i $5
+    ret.i
