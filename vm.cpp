@@ -39,7 +39,7 @@ template <typename T> void op_dec(vm_state &vm, const uint8_t *&ip) {
 
 template <typename T> void op_sub(vm_state &vm, const uint8_t *&ip) {
     T arg = vm.pop<T>();
-    vm.push<T>(arg - vm.pop<T>());
+    vm.push<T>(vm.pop<T>() - arg);
 }
 
 template <typename T> void op_mul(vm_state &vm, const uint8_t *&ip) {
@@ -51,15 +51,15 @@ template <typename T> void op_div(vm_state &vm, const uint8_t *&ip) {
     T a = vm.pop<T>();
     T b = vm.pop<T>();
     // This should work for both integers and floats
-    if (b <= T(eps)) throw std::invalid_argument("Divide by zero");
-    vm.push<T>(a / b);
+    if (a <= T(eps)) throw std::invalid_argument("Divide by zero");
+    vm.push<T>(b / a);
 }
 
 template <typename T> void op_rem(vm_state &vm, const uint8_t *&ip) {
     T a = vm.pop<T>();
     T b = vm.pop<T>();
-    if (b <= T(eps)) throw std::invalid_argument("Divide by zero");
-    vm.push<T>(a % b);
+    if (a <= T(eps)) throw std::invalid_argument("Divide by zero");
+    vm.push<T>(b % a);
 }
 
 template <typename T> void op_neg(vm_state &vm, const uint8_t *&ip) {
@@ -83,19 +83,19 @@ template <typename T> void op_xor(vm_state &vm, const uint8_t *&ip) {
 }
 
 template <typename T> void op_shr(vm_state &vm, const uint8_t *&ip) {
-    auto arg = vm.pop<std::make_unsigned_t<T>>();
-    vm.push<T>(arg >> vm.pop<uint32_t>());
+    auto arg = vm.pop<uint32_t>();
+    vm.push<T>(vm.pop<std::make_unsigned_t<T>>() >> arg);
 }
 
 template <typename T> void op_shl(vm_state &vm, const uint8_t *&ip) {
-    auto arg = vm.pop<std::make_unsigned_t<T>>();
-    vm.push<T>(arg << vm.pop<uint32_t>());
+    auto arg = vm.pop<uint32_t>();
+    vm.push<T>(vm.pop<std::make_unsigned_t<T>>() << arg);
 }
 
 template <typename T> void op_sar(vm_state &vm, const uint8_t *&ip) {
     // That is technically UB for until C++20, but works fine in practice
-    auto arg = vm.pop<std::make_signed_t<T>>();
-    vm.push<T>(arg >> vm.pop<int32_t>());
+    auto arg = vm.pop<uint32_t>();
+    vm.push<T>(vm.pop<std::make_signed_t<T>>() >> arg);
 }
 
 template <typename T> void op_not(vm_state &vm, const uint8_t *&ip) {
