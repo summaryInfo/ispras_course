@@ -471,6 +471,18 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             if (!check("(l)") &&
                 !check("(d)")) return false;
             break;
+        case op_swap_i:
+            if (!check("(ii)ii") &&
+                !check("(if)fi") &&
+                !check("(fi)if") &&
+                !check("(ff)ff")) return false;
+            break;
+        case op_swap_l:
+            if (!check("(ll)ll") &&
+                !check("(ld)dl") &&
+                !check("(dl)ld") &&
+                !check("(dd)dd")) return false;
+            break;
         case op_st_d:
             if (!check("(d)")) return false;
             if (!check_global('d')) return false;

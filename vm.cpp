@@ -203,6 +203,13 @@ template <typename T> void op_dup2(vm_state &vm, const uint8_t *&ip) {
     vm.push<T>(a);
 }
 
+template <typename T> void op_swap(vm_state &vm, const uint8_t *&ip) {
+    auto a = vm.pop<T>();
+    auto b = vm.pop<T>();
+    vm.push<T>(a);
+    vm.push<T>(b);
+}
+
 template <typename T> void op_drop(vm_state &vm, const uint8_t *&ip) {
     (void)vm.pop<T>();
 }
@@ -266,7 +273,7 @@ op_func opcodes[std::numeric_limits<uint8_t>::max()] {
     /*[0x08] =*/ op_sub<int32_t>, op_mul<int32_t>,  op_div<int32_t>,op_neg<int32_t>,
     /*[0x0C] =*/ op_jl<int32_t>,  op_jg<int32_t>,   op_jlz<int32_t>,op_call,
     /*[0x10] =*/ op_dup<int32_t>, op_drop<int32_t>, op_tol<int32_t>,op_tof<int32_t>,
-    /*[0x14] =*/ op_tod<int32_t>, op_hlt,           op_hlt,         op_inc<int32_t>,
+    /*[0x14] =*/ op_tod<int32_t>, op_swap<int32_t>, op_hlt,         op_inc<int32_t>,
     /*[0x18] =*/ op_rem<int32_t>, op_and<int32_t>,  op_shr<int32_t>,op_xor<int32_t>,
     /*[0x1C] =*/ op_jle<int32_t>, op_je<int32_t>,   op_jz<int32_t>, op_ret<int32_t>,
     /*[0x20] =*/ op_jmp,          op_lda<int64_t>,  op_sta<int64_t>,op_ld<int64_t>,
@@ -274,7 +281,7 @@ op_func opcodes[std::numeric_limits<uint8_t>::max()] {
     /*[0x28] =*/ op_sub<int64_t>, op_mul<int64_t>,  op_div<int64_t>,op_neg<int64_t>,
     /*[0x2C] =*/ op_jl<int64_t>,  op_jg<int64_t>,   op_jlz<int64_t>,op_call,
     /*[0x30] =*/ op_dup<int64_t>, op_drop<int64_t>, op_toi<int64_t>,op_tof<int64_t>,
-    /*[0x34] =*/ op_tod<int64_t>, op_hlt,           op_hlt,         op_inc<int64_t>,
+    /*[0x34] =*/ op_tod<int64_t>, op_swap<int64_t>, op_hlt,         op_inc<int64_t>,
     /*[0x38] =*/ op_rem<int64_t>, op_and<int64_t>,  op_shr<int64_t>,op_xor<int64_t>,
     /*[0x3C] =*/ op_jle<int64_t>, op_je<int64_t>,   op_jz<int64_t>, op_ret<int64_t>,
     /*[0x40] =*/ op_call,         op_lda<float>,    op_sta<float>,  op_ld<float>,

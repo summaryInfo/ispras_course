@@ -91,6 +91,8 @@ const static std::map<std::string, opdesc> cmds = {
     {"dup.l", {op_dup_l, ins_plain, 'l'}},
     {"dup2.i", {op_dup2_i, ins_plain, 'i'}},
     {"dup2.l", {op_dup2_l, ins_plain, 'l'}},
+    {"swap.i", {op_swap_i, ins_plain, 'i'}},
+    {"swap.l", {op_swap_l, ins_plain, 'l'}},
     {"drop.i", {op_drop_i, ins_plain, 'i'}},
     {"drop.l", {op_drop_l, ins_plain, 'l'}},
     {"drop2.i", {op_drop2_i, ins_plain, 'i'}},

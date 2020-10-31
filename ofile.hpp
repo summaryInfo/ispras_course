@@ -190,17 +190,17 @@ enum insn {
     op_jl_i = 0x0C,   op_jg_i = 0x0D,    op_jlz_i = 0x0E,   op_call_i = 0x0F,
 
     op_dup_i = 0x10,  op_drop_i = 0x11,  op_tol_i = 0x12,   op_tof_i = 0x13,
-    op_tod_i = 0x14,  op_undef_0 = 0x15, op_undef_1 = 0x16, op_inc_i = 0x17,
+    op_tod_i = 0x14,  op_swap_i = 0x15,  op_undef_1 = 0x16, op_inc_i = 0x17,
     op_rem_i = 0x18,  op_and_i = 0x19,   op_shr_i = 0x1A,   op_xor_i = 0x1B,
     op_jle_i = 0x1C,  op_je_i = 0x1D,    op_jz_i = 0x1E,    op_ret_i = 0x1F,
 
-    op_jmp_ = 0x20,  op_lda_l = 0x21,   op_sta_l = 0x22,   op_ld_l = 0x23,
+    op_jmp_ = 0x20,  op_lda_l = 0x21,    op_sta_l = 0x22,   op_ld_l = 0x23,
     op_st_l = 0x24,   op_ldc_l = 0x25,   op_ldi_l = 0x26,   op_add_l = 0x27,
     op_sub_l = 0x28,  op_mul_l = 0x29,   op_div_l = 0x2A,   op_neg_l = 0x2B,
     op_jl_l = 0x2C,   op_jg_l = 0x2D,    op_jlz_l = 0x2E,   op_call_l = 0x2F,
 
     op_dup_l = 0x30,  op_drop_l = 0x31,  op_toi_l = 0x32,   op_tof_l = 0x33,
-    op_tod_l = 0x34,  op_undef_2 = 0x35, op_undef_3 = 0x36, op_inc_l = 0x37,
+    op_tod_l = 0x34,  op_swap_l = 0x35,  op_undef_3 = 0x36, op_inc_l = 0x37,
     op_rem_l = 0x38,  op_and_l = 0x39,   op_shr_l = 0x3A,   op_xor_l = 0x3B,
     op_jle_l = 0x3C,  op_je_l = 0x3D,    op_jz_l = 0x3E,    op_ret_l = 0x3F,
 
