@@ -2,6 +2,7 @@
 #include "util.hpp"
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -316,6 +317,20 @@ static void scan_i(vm_state &vm) {
     vm.ret();
     vm.push(i);
 }
+static void print_d(vm_state &vm) {
+    std::cout << vm.get_local<double>(0) << std::endl;
+}
+static void scan_d(vm_state &vm) {
+    double i{};
+    std::cin >> i;
+    vm.ret();
+    vm.push(i);
+}
+static void sqrt_d(vm_state &vm) {
+    double sq = std::sqrt(vm.get_local<double>(0));
+    vm.ret();
+    vm.push(sq);
+}
 
 vm_state::vm_state(std::size_t stack_size, std::string path) : stack(stack_size * sizeof(uint32_t)) {
     std::ifstream fstr(path);
@@ -333,6 +348,9 @@ vm_state::vm_state(std::size_t stack_size, std::string path) : stack(stack_size 
 
     defnative(print_i, "(i)", "print_i");
     defnative(scan_i, "()i", "scan_i");
+    defnative(print_d, "(d)", "print_d");
+    defnative(scan_d, "()d", "scan_d");
+    defnative(sqrt_d, "(d)d", "sqrt_d");
 }
 
 int main(int argc, char **argv) {

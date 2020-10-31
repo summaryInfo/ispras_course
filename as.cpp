@@ -143,6 +143,7 @@ const static std::map<std::string, opdesc> cmds = {
     {"ret.l", {op_ret_l, ins_plain, 'l'}},
     {"ret.f", {op_ret_f, ins_plain, 'f'}},
     {"ret.d", {op_ret_d, ins_plain, 'd'}},
+    {"ret", {op_ret_, ins_plain, 0}},
 };
 
 constexpr static uint32_t no_function = -1U;
@@ -166,6 +167,8 @@ object_file compile_functions(const char *file, std::istream &istr) {
     /* Signature parts */
     std::string locals_sig;
     std::string args_sig;
+    std::int32_t locals_offset{-1};
+    std::int32_t args_offset{};
     char return_sig{};
 
     /* local variables for current function */
@@ -485,7 +488,8 @@ object_file compile_functions(const char *file, std::istream &istr) {
                     throw std::logic_error("Out of scope");
                 }
                 locals_sig.push_back(typid[0]);
-                locals.emplace(std::move(name), -locals_sig.size());
+                locals.emplace(std::move(name), locals_offset);
+                locals_offset -= 1 + (typid[0] == 'l' || typid[0] == 'd');
             } else if (id == "param") {
                 /* Prameters have positive indices for lda/sta */
                 if (cfun == no_function) {
@@ -493,7 +497,8 @@ object_file compile_functions(const char *file, std::istream &istr) {
                     throw std::logic_error("Out of scope");
                 }
                 args_sig.push_back(typid[0]);
-                locals.emplace(std::move(name), args_sig.size() - 1);
+                locals.emplace(std::move(name), args_offset);
+                args_offset += 1 + (typid[0] == 'l' || typid[0] == 'd');
             } else if (id == "function") {
                 if (cfun != no_function) {
                     auto erc = emit_function(cfun);

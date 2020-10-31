@@ -171,7 +171,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             /* Pop new types */
             auto it = arg_e - 1;
             for (; it > arg_s && state; it--, state = state->next)
-                if (*it != state->type) return false;
+                if (*it != state->type) { std::cerr << "TTT" << *it << state->type << " " << std::hex << (uint32_t)op[-1] << std::endl; return false; }
 
             /* Check stack underflow */
             if (!state && it > arg_s) {
@@ -202,8 +202,8 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 /* We should use linear search and not just
                  * indexing because local have different sizes */
 
-                std::size_t offset{}, i{arg_e};
-                while (offset < std::size_t(disp) && --i > arg_s) {
+                std::size_t offset{}, i{arg_s};
+                while (offset < std::size_t(disp) && ++i < arg_e) {
                     switch(env.fun->signature[i]) {
                     case 'l': case 'd':
                         offset++;
@@ -215,7 +215,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                         throw std::logic_error("Oops 2");
                     }
                 }
-                auto res = i > arg_s && offset == std::size_t(disp) && env.fun->signature[i - 1] == type;
+                auto res = i > arg_s && offset == std::size_t(disp) && env.fun->signature[i + 1] == type;
                 if (!res) std::cerr << "Parameter type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
                 return res;
             } else /* local */ {
@@ -309,7 +309,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_add_d: case op_div_d:
         case op_mul_d: case op_sub_d:
-            if (!check("(li)l")) return false;
+            if (!check("(dd)d")) return false;
             break;
         case op_jg_f: case op_jl_f:
             if (!check("(ff)")) return false;
