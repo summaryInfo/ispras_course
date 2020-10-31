@@ -21,7 +21,7 @@ constexpr static double eps = 1e-6;
 /* VM opcodes */
 
 void op_wide(vm_state &vm, const uint8_t *&ip) {
-    vm.set_wide();
+    vm.wide = true;
 }
 
 template <typename T> void op_add(vm_state &vm, const uint8_t *&ip) {
@@ -30,12 +30,12 @@ template <typename T> void op_add(vm_state &vm, const uint8_t *&ip) {
 }
 
 template <typename T> void op_inc(vm_state &vm, const uint8_t *&ip) {
-    //vm.push<T>(vm.pop<T>() + util::read_either<T, uint8_t>(ip, vm.get_wide()));
+    //vm.push<T>(vm.pop<T>() + util::read_im<T, uint8_t>(ip, vm.wide));
     vm.push<T>(vm.pop<T>() + 1);
 }
 
 template <typename T> void op_dec(vm_state &vm, const uint8_t *&ip) {
-    //vm.push<T>(vm.pop<T>() - util::read_either<T, uint8_t>(ip, vm.get_wide()));
+    //vm.push<T>(vm.pop<T>() - util::read_im<T, uint8_t>(ip, vm.wide));
     vm.push<T>(vm.pop<T>() - 1);
 }
 
@@ -105,73 +105,73 @@ template <typename T> void op_not(vm_state &vm, const uint8_t *&ip) {
 }
 
 template <typename T> void op_jl(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     T arg = vm.pop<T>();
     if (vm.pop<T>() < arg) vm.jump(disp);
 }
 
 template <typename T> void op_jg(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     T arg = vm.pop<T>();
     if (vm.pop<T>() > arg) vm.jump(disp);
 }
 
 template <typename T> void op_jle(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     T arg = vm.pop<T>();
     if (vm.pop<T>() <= arg) vm.jump(disp);
 }
 
 template <typename T> void op_jge(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     T arg = vm.pop<T>();
     if (vm.pop<T>() >= arg) vm.jump(disp);
 }
 
 template <typename T> void op_je(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     T arg = vm.pop<T>();
     if (vm.pop<T>() == arg) vm.jump(disp);
 }
 
 template <typename T> void op_jne(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     T arg = vm.pop<T>();
     if (vm.pop<T>() != arg) vm.jump(disp);
 }
 
 template <typename T> void op_jz(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     if (!vm.pop<T>()) vm.jump(disp);
 }
 
 template <typename T> void op_jnz(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     if (vm.pop<T>()) vm.jump(disp);
 }
 
 template <typename T> void op_jlz(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     if (vm.pop<T>() < T{}) vm.jump(disp);
 }
 
 template <typename T> void op_jlez(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     if (vm.pop<T>() <= T{}) vm.jump(disp);
 }
 
 template <typename T> void op_jgz(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     if (vm.pop<T>() > T{}) vm.jump(disp);
 }
 
 template <typename T> void op_jgez(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     if (vm.pop<T>() >= T{}) vm.jump(disp);
 }
 
 void op_jmp(vm_state &vm, const uint8_t *&ip) {
-    ptrdiff_t disp = util::read_either<int16_t>(ip, vm.get_wide());
+    ptrdiff_t disp = util::read_im<int16_t>(ip, vm.wide);
     vm.jump(disp);
 }
 
@@ -213,7 +213,7 @@ template <typename T> void op_drop2(vm_state &vm, const uint8_t *&ip) {
 }
 
 void op_call(vm_state &vm, const uint8_t *&ip) {
-    vm.invoke(util::read_either<uint16_t,uint8_t>(ip, vm.get_wide()));
+    vm.invoke(util::read_im<uint16_t,uint8_t>(ip, vm.wide));
 }
 
 void op_tcall(vm_state &vm, const uint8_t *&ip) {
@@ -232,23 +232,23 @@ template <> void op_ret<void>(vm_state &vm, const uint8_t *&ip) {
 }
 
 template <typename T> void op_ld(vm_state &vm, const uint8_t *&ip) {
-    vm.push<T>(vm.get_global<T>(util::read_either<uint16_t,uint8_t>(ip, vm.get_wide())));
+    vm.push<T>(vm.get_global<T>(util::read_im<uint16_t,uint8_t>(ip, vm.wide)));
 }
 
 template <typename T> void op_lda(vm_state &vm, const uint8_t *&ip) {
-    vm.push<T>(vm.get_local<T>(util::read_either<int16_t>(ip, vm.get_wide())));
+    vm.push<T>(vm.get_local<T>(util::read_im<int16_t>(ip, vm.wide)));
 }
 
 template <typename T> void op_st(vm_state &vm, const uint8_t *&ip) {
-    vm.set_global(util::read_either<uint16_t,uint8_t>(ip, vm.get_wide()), vm.pop<T>());
+    vm.set_global(util::read_im<uint16_t,uint8_t>(ip, vm.wide), vm.pop<T>());
 }
 
 template <typename T> void op_sta(vm_state &vm, const uint8_t *&ip) {
-    vm.set_local(util::read_either<int16_t>(ip, vm.get_wide()), vm.pop<T>());
+    vm.set_local(util::read_im<int16_t>(ip, vm.wide), vm.pop<T>());
 }
 
 template <typename T> void op_ldi(vm_state &vm, const uint8_t *&ip) {
-    vm.push(util::read_either<int16_t>(ip, vm.get_wide()));
+    vm.push(util::read_im<int16_t>(ip, vm.wide));
 }
 
 template <typename T> void op_ldc(vm_state &vm, const uint8_t *&ip) {

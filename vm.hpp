@@ -27,10 +27,13 @@ class vm_state {
 
     function *ip_fun{};
     const uint8_t *ip{}; /* instruction pointer register */
-    bool wide_flag{}; /* wide prefix is active */
-
 
 public:
+    /**
+     * wide flag
+     */
+    bool wide;
+
     /**
      * Evaluate a function call.
      * Arguments correctness is not checked.
@@ -55,7 +58,7 @@ public:
         std::swap(fp, other.fp);
         std::swap(ip, other.ip);
         std::swap(ip_fun, other.ip_fun);
-        std::swap(wide_flag, other.wide_flag);
+        std::swap(wide, other.wide);
         object.swap(other.object);
     }
 
@@ -162,24 +165,6 @@ public:
         // util::write_at<T>(memory.data() + n*sizeof(uint32_t), value);
 
         return util::write_at<T>(reinterpret_cast<uint8_t*>(&object.globals[n].init_value), value);
-    }
-
-    /**
-     * Set wide flag
-     */
-    void set_wide() {
-        wide_flag = true;
-    }
-
-    /**
-     * Read and reset wide flag
-     *
-     * @return wide flag
-     */
-    bool get_wide() {
-        bool w = wide_flag;
-        wide_flag = false;
-        return w;
     }
 
     /**

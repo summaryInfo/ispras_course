@@ -114,22 +114,19 @@ void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, 
         case ins_plain:
             break;
         case ins_jump: {
-            int16_t disp = util::read_either<int16_t>(op, wide);
-            wide = false;
+            int16_t disp = util::read_im<int16_t>(op, wide);
             labels.emplace(op - fn.code.begin() + disp, labn++);
         } break;
         case ins_call:
         case ins_local:
         case ins_global:
-            op += 1 + wide;
-            wide = false;
+            util::read_im<int16_t>(op, wide);
             break;
         case ins_const:
             switch(op[-1]) {
             case op_ldi_i:
             case op_ldi_l:
-                op += 1 + wide;
-                wide = false;
+                util::read_im<int16_t>(op, wide);
                 break;
             case op_ldc_i:
                 op += sizeof(int32_t);
@@ -177,18 +174,15 @@ void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, 
             /* Don't need to do anything for plain insns */
             break;
         case ins_jump: {
-            int16_t disp = util::read_either<int16_t>(op, wide);
-            wide = false;
+            int16_t disp = util::read_im<int16_t>(op, wide);
             ostr << " L" << labels[op - fn.code.begin() + disp];
         } break;
         case ins_call: {
-            uint16_t disp = util::read_either<uint16_t, uint8_t>(op, wide);
-            wide = false;
+            uint16_t disp = util::read_im<uint16_t, uint8_t>(op, wide);
             ostr << " " << &stab[obj.functions[disp].name];
         } break;
         case ins_local: {
-            int16_t disp = util::read_either<int16_t>(op, wide);
-            wide = false;
+            int16_t disp = util::read_im<int16_t>(op, wide);
             if (disp < 0) {
                 ostr << " loc" << -(1 + disp);
             } else {
@@ -196,16 +190,14 @@ void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, 
             }
         } break;
         case ins_global: {
-            uint16_t disp = util::read_either<uint16_t, uint8_t>(op, wide);
-            wide = false;
+            uint16_t disp = util::read_im<uint16_t, uint8_t>(op, wide);
             ostr << " " << &stab[obj.globals[disp].name];
         } break;
         case ins_const:
             switch(op[-1]) {
             case op_ldi_i:
             case op_ldi_l: {
-                int32_t cons = util::read_either<int16_t>(op, wide);
-                wide = false;
+                int32_t cons = util::read_im<int16_t>(op, wide);
                 ostr << " $" << cons;
             } break;
             case op_ldc_i: {

@@ -152,8 +152,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 std::cerr << "Unterminated instruction" << std::endl;
                 return false;
             }
-            auto disp = util::read_either<int16_t>(op, wide);
-            wide = false;
+            auto disp = util::read_im<int16_t>(op, wide);
             if ((disp < 0 && op + disp < env.fun->code.begin()) || (disp > 0 && op + disp >= env.end)) {
                 std::cerr << "Jump is out of bounds" << std::endl;
                 return false;
@@ -191,8 +190,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 std::cerr << "Unterminated instruction" << std::endl;
                 return false;
             }
-            int16_t disp = util::read_either<int16_t>(op, wide);
-            wide = false;
+            int16_t disp = util::read_im<int16_t>(op, wide);
             if (disp >= 0) /* argument */ {
                 auto arg_s = env.fun->signature.find('(');
                 auto arg_e = env.fun->signature.find(')');
@@ -245,8 +243,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 std::cerr << "Unterminated instruction" << std::endl;
                 return false;
             }
-            uint16_t disp = util::read_either<uint16_t, uint8_t>(op, wide);
-            wide = false;
+            uint16_t disp = util::read_im<uint16_t, uint8_t>(op, wide);
             auto res = disp < env.obj->globals.size() &&
                        env.obj->globals[disp].type == type;
             if (!res) std::cerr << "Global variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
@@ -258,8 +255,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 std::cerr << "Unterminated instruction" << std::endl;
                 return false;
             }
-            uint16_t disp = util::read_either<uint16_t, uint8_t>(op, wide);
-            wide = false;
+            uint16_t disp = util::read_im<uint16_t, uint8_t>(op, wide);
 
             auto &sig = env.obj->functions[disp].signature;
             auto res = disp < env.obj->functions.size() &&

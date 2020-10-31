@@ -7,9 +7,9 @@
 
 namespace util {
     /** Read next unalligned item if type T
-     * 
+     *
      *  @param [in] addr address to read from
-     * 
+     *
      *  @return read value
      */
     template<typename T, typename It>
@@ -19,10 +19,10 @@ namespace util {
         return tmp;
     }
 
-    /** Read next unalligned item if type T and increment address 
-     * 
+    /** Read next unalligned item if type T and increment address
+     *
      *  @param [inout] addr address to read from
-     * 
+     *
      *  @return read value
      */
     template<typename T, typename It>
@@ -33,9 +33,9 @@ namespace util {
     }
 
     /** Move to previous item read it
-     * 
+     *
      *  @param [inout] addr address to read from
-     * 
+     *
      *  @return read value
      */
     template<typename T, typename It>
@@ -45,7 +45,7 @@ namespace util {
     }
 
     /** Write next unalligned item if type T and increment address
-     * 
+     *
      *  @param [inout] addr address to write to
      */
     template<typename T, typename It>
@@ -54,7 +54,7 @@ namespace util {
     }
 
     /** Move to previous item write it
-     * 
+     *
      *  @param [inout] addr address to write to
      */
     template<typename T, typename It>
@@ -64,10 +64,10 @@ namespace util {
     }
 
     /** Read next either of types T and U
-     * 
+     *
      *  @param [inout] addr address to read from
      *  @param [in] wide width selector
-     * 
+     *
      *  @return read value
      */
     template<typename T, typename U = int8_t, typename It>
@@ -75,8 +75,22 @@ namespace util {
         return wide ? read_next<T>(addr) : read_next<U>(addr);
     }
 
+    /** Read operand of types T and U and reset wide flag
+     *
+     *  @param [inout] addr address to read from
+     *  @param [in] wide width selector
+     *
+     *  @return read value
+     */
+    template<typename T, typename U = int8_t, typename It>
+    std::enable_if_t<std::is_scalar<T>::value, decltype(T{}+U{})> read_im(It &addr, bool &wide) {
+        auto res = read_either<T, U>(addr, wide);
+        wide = false;
+        return res;
+    }
+
     /** Put value in native byte order to code vector
-     * 
+     *
      * @param [inout] vec vector to append
      * @param [in] value data to write
      */
