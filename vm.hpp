@@ -88,7 +88,6 @@ public:
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value, T> pop() {
         T tmp = util::read_next<T>(sp);
-        std::cout << "->" << tmp << std::endl;
         return tmp;
     }
 
@@ -110,7 +109,6 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value> push(T value) {
-        std::cout << "<-" << value << std::endl;
         util::write_prev(sp, value);
     }
 
