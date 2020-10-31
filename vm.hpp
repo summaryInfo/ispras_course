@@ -32,7 +32,7 @@ public:
     /**
      * wide flag
      */
-    bool wide;
+    bool wide{};
 
     /**
      * Evaluate a function call.
