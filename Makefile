@@ -9,7 +9,7 @@ DIS ?= xsdis
 DISOBJ := ofile.o disas.o
 
 ifdef NDEBUG
-CXXFLAGS += -DNDEBUG=$(NDEBUG) -O2
+CXXFLAGS += -DNDEBUG=$(NDEBUG) -O2 -flto
 else
 CXXFLAGS += -Og -g
 endif
