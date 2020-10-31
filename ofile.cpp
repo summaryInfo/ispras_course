@@ -103,10 +103,22 @@ struct stack_state {
 
         return oth == thi;
     }
+
     stack_state(std::shared_ptr<stack_state> next_, char type_) :
         next(std::move(next_)), type(type_) {}
     stack_state() {}
 };
+
+std::ostream &operator<<(std::ostream &str, const stack_state &state) {
+    auto *stt_ptr = &state;
+    str << "stack[";
+    while (stt_ptr) {
+        str << stt_ptr->type;
+        stt_ptr = stt_ptr->next.get();
+    }
+    str << "]";
+    return str;
+}
 
 struct check_env {
     object_file *obj;
@@ -138,8 +150,12 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         do {
             auto &ref = env.anno[op - env.fun->code.begin()];
             if (ref) {
-                auto res = ref == state;
-                if (!res) std::cerr << "Wrong type interface after jump" << std::endl;
+                auto res = *ref == *state;
+                if (!res) {
+                    std::cerr << "Wrong type interface after jump" << std::endl;
+                    std::cerr << "\t" << *ref << std::endl;
+                    std::cerr << "\t" << *state << std::endl;
+                }
                 return res;
             }
             ref = state;
@@ -157,8 +173,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 std::cerr << "Jump is out of bounds" << std::endl;
                 return false;
             }
-            auto x = trace_types(env, state, op + disp);
-            return x;
+            return trace_types(env, state, op + disp);
         };
 
         auto check = [&](const char *sig) -> bool {
