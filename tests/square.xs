@@ -7,7 +7,6 @@
 .local double a
 .local double b
 .local double c
-.local double det
 	call.d scan_d
     st.d a
 	call.d scan_d
@@ -25,7 +24,6 @@
     sub.d
     call.d sqrt_d
     dup.l
-    st.d det
     ld.d b
     sub.d
     ld.d $2
@@ -34,7 +32,7 @@
     div.d
     call print_d
     ld.d b
-    ld.d det
+    swap.l
     add.d
     neg.d
     ld.d $2
