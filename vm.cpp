@@ -309,31 +309,29 @@ void vm_state::eval(const std::string &fun) {
 }
 
 static void print_i(vm_state &vm) {
-    std::cout << vm.get_local<int32_t>(0) << std::endl;
+    std::cout << vm.pop<int32_t>() << std::endl;
 }
 static void scan_i(vm_state &vm) {
     int32_t i{};
     std::cin >> i;
-    vm.ret();
     vm.push(i);
 }
 static void print_d(vm_state &vm) {
-    std::cout << vm.get_local<double>(0) << std::endl;
+    std::cout << vm.pop<double>() << std::endl;
 }
 static void scan_d(vm_state &vm) {
     double i{};
     std::cin >> i;
-    vm.ret();
     vm.push(i);
 }
 static void sqrt_d(vm_state &vm) {
-    double sq = std::sqrt(vm.get_local<double>(0));
-    vm.ret();
+    double sq = std::sqrt(vm.pop<double>());
     vm.push(sq);
 }
 
-vm_state::vm_state(std::size_t stack_size, std::string path) : stack(stack_size * sizeof(uint32_t)) {
+vm_state::vm_state(std::size_t stack_size, std::string path) {
     std::ifstream fstr(path);
+    stack.resize(stack_size*sizeof(uint32_t));
     object.read(fstr);
     sp = &*stack.end();
 

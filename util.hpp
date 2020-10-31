@@ -59,8 +59,8 @@ namespace util {
      */
     template<typename T, typename It>
     std::enable_if_t<std::is_scalar<T>::value> write_prev(It &addr, T value) {
+        addr -= sizeof(T);
         write_at(addr, value);
-        addr += sizeof(T);
     }
 
     /** Read next either of types T and U

@@ -27,7 +27,7 @@ class vm_state {
 
     function *ip_fun{};
     const uint8_t *ip{}; /* instruction pointer register */
-    bool wide_flag; /* wide prefix is active */
+    bool wide_flag{}; /* wide prefix is active */
 
 
 public:
@@ -88,6 +88,7 @@ public:
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value, T> pop() {
         T tmp = util::read_next<T>(sp);
+        std::cout << "->" << tmp << std::endl;
         return tmp;
     }
 
@@ -109,6 +110,7 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value> push(T value) {
+        std::cout << "<-" << value << std::endl;
         util::write_prev(sp, value);
     }
 
@@ -197,23 +199,20 @@ public:
      * @param[in] idx functions array index
      */
     void invoke(uint32_t idx) {
-        push<function *>(ip_fun);
-        push<const uint8_t *>(ip);
-        push<uint8_t *>(*&fp);
+        if (object.functions[idx].code.size()) {
+            push<function *>(ip_fun);
+            push<const uint8_t *>(ip);
+            push<uint8_t *>(*&fp);
 
-        fp = sp;
-        ip_fun = &object.functions[idx];
-        ip = object.functions[idx].code.data();
-
-
-        /* Allocate space on stack for locals */
-        auto fr_size = object.functions[idx].frame_size;
-        sp -= fr_size;
-
-        /* Frame should be initially zeroed*/
-        std::memset(sp, 0, fr_size);
-
-        if (!ip_fun->code.size()) {
+            fp = sp;
+            ip_fun = &object.functions[idx];
+            ip = object.functions[idx].code.data();
+            /* Allocate space on stack for locals */
+            auto fr_size = object.functions[idx].frame_size;
+            sp -= fr_size;
+            /* Frame should be initially zeroed*/
+            std::memset(sp, 0, fr_size);
+        } else {
             /* This is native function */
             auto nf = nfunc.find(idx);
             if (nf == nfunc.end())
