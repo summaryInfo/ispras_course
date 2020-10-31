@@ -389,6 +389,44 @@ object_file compile_functions(const char *file, std::istream &istr) {
         return nullptr;
     };
 
+    /* Emit global definition */
+    auto add_global = [&](std::string::iterator &it, std::string &&name, std::string &typid) -> const char * {
+        /* Initial value */
+        char *end = nullptr;
+        errno = 0;
+        bool success = true, init{};
+        if (typid == "int") {
+            int32_t value{};
+            long res = std::strtol(&*it, &end, 0);
+            if (res > std::numeric_limits<int32_t>::max() ||
+                res < std::numeric_limits<int32_t>::min()) errno = ERANGE;
+            if (!end || errno)  return "Wrong constant";
+            else if (end != &*it) value = res, init = true;
+            success = out.add_global(std::move(name), value, init, typid[0]);
+        } else if (typid == "long") {
+            int64_t value{};
+            long long res = std::strtoll(&*it, &end, 0);
+            if (res > std::numeric_limits<int64_t>::max() ||
+                res < std::numeric_limits<int64_t>::min()) errno = ERANGE;
+            if (!end || errno)  return "Wrong constant";
+            else if (end != &*it) value = res, init = true;
+            success = out.add_global(std::move(name), value, init, typid[0]);
+        } else if (typid == "float") {
+            float value = std::strtof(&*it, &end);
+            if (!end || errno)  return "Wrong constant";
+            else if (end == &*it) value = {};
+            success = out.add_global(std::move(name), value, init, typid[0]);
+        } else if (typid == "double") {
+            double value = std::strtod(&*it, &end);
+            if (!end || errno)  return "Wrong constant";
+            else if (end == &*it) value = {};
+            success = out.add_global(std::move(name), value, init, typid[0]);
+        }
+        if (!success) return "Redefinition of global with different type";
+        if (end) it += end - &*it;
+        return nullptr;
+    };
+
     while (getline(istr, line)) {
         /* Skip whitespaces */
         auto skip_spaces = [](std::string::iterator &it) {
@@ -435,43 +473,11 @@ object_file compile_functions(const char *file, std::istream &istr) {
             consume_id(name, it, "#");
 
             if (id == "global") {
-
-                /* Initial value */
-                char *end = nullptr;
-                errno = 0;
-                bool success = true, init{};
-                if (typid == "int") {
-                    int32_t value{};
-                    long res = std::strtol(&*it, &end, 0);
-                    if (res > std::numeric_limits<int32_t>::max() ||
-                        res < std::numeric_limits<int32_t>::min()) errno = ERANGE;
-                    else if (!end || errno) print_line_error("Wrong constant", file, line_n, line, it);
-                    else if (end != &*it) value = res, init = true;
-                    success = out.add_global(std::move(name), value, init, typid[0]);
-                } else if (typid == "long") {
-                    int64_t value{};
-                    long long res = std::strtoll(&*it, &end, 0);
-                    if (res > std::numeric_limits<int64_t>::max() ||
-                        res < std::numeric_limits<int64_t>::min()) errno = ERANGE;
-                    if (!end || errno) print_line_error("Wrong constant", file, line_n, line, it);
-                    else if (end != &*it) value = res, init = true;
-                    success = out.add_global(std::move(name), value, init, typid[0]);
-                } else if (typid == "float") {
-                    float value = std::strtof(&*it, &end);
-                    if (!end || errno)  print_line_error("Wrong constant", file, line_n, line, it);
-                    else if (end == &*it) value = {};
-                    success = out.add_global(std::move(name), value, init, typid[0]);
-                } else if (typid == "double") {
-                    double value = std::strtod(&*it, &end);
-                    if (!end || errno)  print_line_error("Wrong constant", file, line_n, line, it);
-                    else if (end == &*it) value = {};
-                    success = out.add_global(std::move(name), value, init, typid[0]);
+                auto *erc = add_global(it, std::move(name), typid);
+                if (erc) {
+                    print_line_error(erc, file, line_n, line, it);
+                    throw std::logic_error(erc);
                 }
-                if (!success) {
-                    print_line_error("Redefinition of global with different type", file, line_n, line, it);
-                    throw std::logic_error("Global redefinition");
-                }
-                if (end) it += end - &*it;
             } else if (id == "local") {
                 /* Local variables have negative indices for lda/sta */
                 if (cfun == no_function) {
