@@ -90,6 +90,7 @@ void object_file::write(std::ostream &st) {
 struct stack_state {
     std::shared_ptr<stack_state> next;
     char type;
+    uint32_t depth;
 
     /* stack_state comparison is a list traversal */
     bool operator==(stack_state &other) {
@@ -105,7 +106,7 @@ struct stack_state {
     }
 
     stack_state(std::shared_ptr<stack_state> next_, char type_) :
-        next(std::move(next_)), type(type_) {}
+        next(std::move(next_)), type(type_), depth(next ? next->depth + 1 : 0) {}
     stack_state() {}
 };
 
@@ -184,8 +185,14 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
 
             /* Pop new types */
             auto it = arg_e - 1;
-            for (; it > arg_s && state; it--, state = state->next)
+            for (; it > arg_s && state; it--, state = state->next) {
                 if (*it != state->type) return false;
+                /* Disallow poping locals */
+                if (state->depth < env.fun->locals.size()) {
+                    std::cerr << "Stack undeflow in code" << std::endl;
+                    return false;
+                }
+            }
 
             /* Check stack underflow */
             if (!state && it > arg_s) {
