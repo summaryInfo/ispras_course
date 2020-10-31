@@ -297,17 +297,7 @@ int main(int argc, char *argv[]) {
     object_file obj;
     obj.read(str);
 
-    std::string outfile;
-    if (argc < 3) {
-        outfile = argv[1];
-        if (outfile.size() > 3 && !outfile.compare(outfile.size() -
-               sizeof(XSO_EXT) + 1, sizeof(XSO_EXT) - 1, XSO_EXT)) {
-            outfile = outfile.substr(0, outfile.size() - sizeof(XSO_EXT) + 1);
-        }
-        outfile += XS_EXT;
-    } else {
-        outfile = argv[2];
-    }
+    std::string outfile = argc < 3 ? util::swap_ext(argv[1], XSO_EXT, XS_EXT) : argv[2];
     std::ofstream outstr(outfile, std::ios::out | std::ios::trunc);
     if (!outstr.is_open()) {
         std::cerr << "Cannot open output file \"" << outfile << '"' << std::endl;

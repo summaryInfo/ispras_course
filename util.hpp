@@ -1,8 +1,9 @@
 #pragma once
 
-#include <type_traits>
 #include <cstdint>
 #include <cstring>
+#include <string>
+#include <type_traits>
 #include <vector>
 
 namespace util {
@@ -95,8 +96,16 @@ namespace util {
      * @param [in] value data to write
      */
     template<typename T>
-    static void vec_put_native(std::vector<uint8_t> &vec, T value) {
+    void vec_put_native(std::vector<uint8_t> &vec, T value) {
         vec.resize(vec.size() + sizeof value);
         std::memcpy(&*vec.end() - sizeof value, &value, sizeof value);
+    }
+
+    inline static std::string swap_ext(std::string path, const std::string &oldx, const std::string &newx) {
+        if (path.size() > oldx.size() && !path.compare(path.size() -
+               oldx.size(), oldx.size(), oldx)) {
+            path = path.substr(0, path.size() - oldx.size());
+        }
+        return std::move(path) + newx;
     }
 }

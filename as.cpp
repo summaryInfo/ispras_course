@@ -643,17 +643,7 @@ int main(int argc, char *argv[]) {
     }
     obj = compile_functions(argv[1], fstr);
 
-    std::string outfile;
-    if (argc < 3) {
-        outfile = argv[1];
-        if (outfile.size() > 3 && !outfile.compare(outfile.size() -
-               sizeof(XS_EXT) + 1, sizeof(XS_EXT) - 1, XS_EXT)) {
-            outfile = outfile.substr(0, outfile.size() - sizeof(XS_EXT) + 1);
-        }
-        outfile += XSO_EXT;
-    } else {
-        outfile = argv[2];
-    }
+    std::string outfile = argc < 3 ? util::swap_ext(argv[1], XS_EXT, XSO_EXT) : argv[2];
     std::ofstream outstr(outfile, std::ios::binary | std::ios::out | std::ios::trunc);
     if (!outstr.is_open()) {
         std::cerr << "Cannot open output file \"" << outfile << '"' << std::endl;
