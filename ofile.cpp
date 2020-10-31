@@ -381,7 +381,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_ldi_l:
             if (!check("()l")) return false;
-            op += 1 + wide;
+            util::read_im<int16_t>(op, wide);
             break;
         case op_ld_l:
             if (!check("()l")) return false;
@@ -405,7 +405,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             break;
         case op_ldi_i:
             if (!check("()i")) return false;
-            op += 1 + wide;
+            util::read_im<int16_t>(op, wide);
             break;
         case op_ldc_f:
             if (!check("()f")) return false;
