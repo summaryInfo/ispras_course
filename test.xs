@@ -21,6 +21,9 @@
     call.i test2
     call print_i
     call.i test2
+    ld.i $4
+    call.i switch
+    call print_i
     ret.i
 label:
     ld.i $-3
@@ -55,6 +58,56 @@ tt: ld.i $3
     dup.i
     ld.i $5
     je.i case_5
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
+    ld.d $0
+    drop.l
     ld.i $6
     ret.i
 case_0:

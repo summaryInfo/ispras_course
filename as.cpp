@@ -220,13 +220,13 @@ object_file compile_functions(const char *file, std::istream &istr) {
                 disp - short_jump_len >= std::numeric_limits<int8_t>::min()) {
                  /* Can generate short jump insn */
                 code.push_back(op);
-                code.push_back(disp);
+                code.push_back(disp - short_jump_len);
             } else if (disp - long_jump_len <= std::numeric_limits<int16_t>::max() &&
                        disp - long_jump_len >= std::numeric_limits<int16_t>::min()) {
                  /* Can generate long jump insn */
                 code.push_back(op_pwide);
                 code.push_back(op);
-                util::vec_put_native<int16_t>(code, disp);
+                util::vec_put_native<int16_t>(code, disp - long_jump_len);
             } else return "Jump is out of range";
         } else {
             /* Store jump as one of unresolved jumps */
@@ -356,7 +356,7 @@ object_file compile_functions(const char *file, std::istream &istr) {
         if (range.first != jumps.end()) {
             /* and resolve jumps */
             for (auto itr = range.first; itr != range.second; itr++) {
-                int32_t disp = off - itr->second - 4;
+                int32_t disp = off - itr->second + long_jump_len;
                 if (disp <= std::numeric_limits<int16_t>::max() &&
                     disp >= std::numeric_limits<int16_t>::min()) {
                     int16_t d16 = disp;

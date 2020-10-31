@@ -162,7 +162,7 @@ void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, 
             continue;
         }
 
-        const auto &lab = labels.find(op - fn.code.begin());
+        const auto &lab = labels.find(op - 1 - fn.code.begin());
         if (lab != labels.end()) {
             /* Emit label if some instruction references current address
              * NOTE: Jumps to the middle of instruction emits invalid labels
