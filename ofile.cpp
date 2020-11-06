@@ -1,4 +1,5 @@
 #include "ofile.hpp"
+#include "insn.hpp"
 
 #include <limits>
 #include <iostream>
@@ -164,19 +165,6 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
 
         uint8_t cmd = *op++;
 
-        auto check_jump = [&]() -> bool {
-            if (env.end - op < 1 + wide) {
-                std::cerr << "Unterminated instruction" << std::endl;
-                return false;
-            }
-            auto disp = util::read_im<int16_t>(op, wide);
-            if ((disp < 0 && op + disp < env.fun->code.begin()) || (disp > 0 && op + disp >= env.end)) {
-                std::cerr << "Jump is out of bounds" << std::endl;
-                return false;
-            }
-            return trace_types(env, state, op + disp);
-        };
-
         auto check = [&](const char *sig) -> bool {
             /* Parse signature and compare with stack state */
             auto arg_s = std::strchr(sig, '(');
@@ -185,8 +173,14 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
 
             /* Pop new types */
             auto it = arg_e - 1;
+            char poly[10] {};
             for (; it > arg_s && state; it--, state = state->next) {
-                if (*it != state->type) return false;
+                if (std::isdigit(*it)) {
+                    /* Polymorphic parameters */
+                    if ((*it < '5' && state->type != 'f' && state->type != 'i') ||
+                        (*it >= '5' && state->type != 'd' && state->type != 'l')) return false;
+                    poly[*it - '0'] = state->type;
+                } else if (*it != state->type) return false;
                 /* Disallow poping locals */
                 if (state->depth < env.fun->locals.size()) {
                     std::cerr << "Stack undeflow in code" << std::endl;
@@ -201,13 +195,33 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             }
 
             /* Push new types */
-            for (auto it = arg_e + 1; *it; it++)
-                state = std::make_shared<stack_state>(state, *it);
+            for (auto it = arg_e + 1; *it; it++) {
+                char tp = std::isdigit(*it) ? poly[*it - '0'] : *it;
+                state = std::make_shared<stack_state>(state, tp);
+            }
 
             return true;
         };
 
-        auto check_local = [&](char type) -> bool {
+        switch(cmd < insns.size() ? insns[cmd].iclass : ins_undef) {
+        case ins_jump: {
+            if (!check(insns[cmd].sig)) return false;
+            if (env.end - op < 1 + wide) {
+                std::cerr << "Unterminated instruction" << std::endl;
+                return false;
+            }
+            auto disp = util::read_im<int16_t>(op, wide);
+            if ((disp < 0 && op + disp < env.fun->code.begin()) || (disp > 0 && op + disp >= env.end)) {
+                std::cerr << "Jump is out of bounds" << std::endl;
+                return false;
+            }
+            if (!trace_types(env, state, op + disp)) return false;
+        } break;
+        case ins_plain:
+            if (!check(insns[cmd].sig)) return false;
+            break;
+        case ins_local: {
+            if (!check(insns[cmd].sig)) return false;
             if (env.end - op < 1 + wide) {
                 std::cerr << "Unterminated instruction" << std::endl;
                 return false;
@@ -224,55 +238,73 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
 
                 std::size_t offset{}, i{arg_s + 1};
                 while (offset < std::size_t(disp) && i < arg_e) {
-                    switch(env.fun->signature[i++]) {
-                    case 'l': case 'd':
-                        offset++;
-                        [[fallthrough]];
-                    case 'i': case 'f':
-                        offset++;
-                        break;
-                    default:
-                        throw std::logic_error("Oops 2");
-                    }
+                    char c = env.fun->signature[i++];
+                    offset += 1 + (c == 'l' || c == 'd');
                 }
-                auto res = i <= arg_e && offset == std::size_t(disp) && env.fun->signature[i] == type;
-                if (!res) std::cerr << "Parameter type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
-                return res;
+                if (i > arg_e || offset != std::size_t(disp) ||
+                    env.fun->signature[i] != insns[cmd].type) {
+
+                    std::cerr << "Parameter type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
+                    return false;
+                }
             } else /* local */ {
                 std::size_t offset{}, i{};
-                while (offset < std::size_t(-1 - disp) && i < env.fun->locals.size()) {
-                    switch(env.fun->locals[i++]) {
-                    case 'l': case 'd':
-                        offset++;
-                        [[fallthrough]];
-                    case 'i': case 'f':
-                        offset++;
-                        break;
-                    default:
-                        throw std::logic_error("Oops 3");
-                    }
+                while (offset < std::size_t(-1 - disp) &&
+                       i < env.fun->locals.size()) {
+                    char c = env.fun->locals[i];
+                    offset += 1 + (c == 'l' || c == 'd');
                 }
-                auto res = i < env.fun->locals.size() &&
-                           offset == std::size_t(-1 - disp) &&
-                           env.fun->locals[i] == type;
-                if (!res) std::cerr << "Local variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
-                return res;
-            }
-        };
 
-        auto check_global = [&](char type) -> bool {
+                if (i >= env.fun->locals.size() ||
+                    offset != std::size_t(-1 - disp) ||
+                    env.fun->locals[i] != insns[cmd].type) {
+
+                    std::cerr << "Local variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
+                    return false;
+                }
+            }
+        } break;
+        case ins_global: {
+            if (!check(insns[cmd].sig)) return false;
             if (env.end - op < 1 + wide) {
                 std::cerr << "Unterminated instruction" << std::endl;
                 return false;
             }
             uint16_t disp = util::read_im<uint16_t, uint8_t>(op, wide);
             auto res = disp < env.obj->globals.size() &&
-                       env.obj->globals[disp].type == type;
-            if (!res) std::cerr << "Global variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
-            return res;
-        };
+                       env.obj->globals[disp].type == insns[cmd].type;
+            if (!res) {
+                std::cerr << "Global variable type interface violation of " << std::hex << (uint32_t)cmd << std::endl;
+                return false;
+            }
+        } break;
+        case ins_const: {
+            if (!check(insns[cmd].sig)) return false;
+            switch (cmd) {
+            case op_ldi_i:
+            case op_ldi_l:
+                util::read_im<int16_t>(op, wide);
+                break;
+            case op_ldc_i:
+                op += sizeof(int32_t);
+                break;
+            case op_ldc_l:
+                op += sizeof(int64_t);
+                break;
+            case op_ldc_f:
+                op += sizeof(float);
+                break;
+            case op_ldc_d:
+                op += sizeof(double);
+                break;
+            default:
+                throw std::logic_error("Oops 5");
+            }
+        } break;
+        case ins_call: {
+            if (cmd == op_tcall_)
+                throw std::logic_error("Unimplemented");
 
-        auto check_call = [&](const char *after) -> bool {
             if (env.end - op < 1 + wide) {
                 std::cerr << "Unterminated instruction" << std::endl;
                 return false;
@@ -281,300 +313,22 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
 
             auto &sig = env.obj->functions[disp].signature;
             auto res = disp < env.obj->functions.size() &&
-                       sig[sig.find(')') + 1] == *after && check(sig.data());
+                       sig[sig.find(')') + 1] == insns[cmd].type && check(sig.data());
             if (!res) {
                 std::cerr << "Function call type interface violation of "
                           << std::hex << (uint32_t)cmd << std::endl;
             }
             return res;
-        };
 
-
-        switch(cmd) {
-        case op_je_i: case op_jge_i:
-        case op_jle_i: case op_jl_i:
-        case op_jg_i: case op_jne_i:
-            if (!check("(ii)")) return false;
-            if (!check_jump()) return false;
-            break;
-        case op_add_i: case op_div_i:
-        case op_and_i: case op_or_i:
-        case op_mul_i: case op_sar_i:
-        case op_shl_i: case op_shr_i:
-        case op_sub_i: case op_xor_i:
-        case op_rem_i:
-            if (!check("(ii)i")) return false;
-            break;
-        case op_je_l: case op_jge_l:
-        case op_jle_l: case op_jl_l:
-        case op_jg_l: case op_jne_l:
-            if (!check_jump()) return false;
-            if (!check("(ll)")) return false;
-            break;
-        case op_add_l: case op_div_l:
-        case op_and_l: case op_or_l:
-        case op_mul_l: case op_sub_l:
-        case op_xor_l: case op_rem_l:
-            if (!check("(ll)l")) return false;
-            break;
-        case op_sar_l: case op_shl_l:
-        case op_shr_l:
-            if (!check("(li)l")) return false;
-            break;
-        case op_jg_d: case op_jl_d:
-            if (!check("(dd)")) return false;
-            if (!check_jump()) return false;
-            break;
-        case op_add_d: case op_div_d:
-        case op_mul_d: case op_sub_d:
-            if (!check("(dd)d")) return false;
-            break;
-        case op_jg_f: case op_jl_f:
-            if (!check("(ff)")) return false;
-            if (!check_jump()) return false;
+        } break;
+        case ins_return: {
+            if (!check(insns[cmd].sig)) return false;
+            char tp = env.fun->signature[env.fun->signature.size() - 1];
+            return (tp == ')' ? 0 : tp) == insns[cmd].type;
+        }
+        case ins_undef:
+            if (cmd == op_hlt_) return true;
             [[fallthrough]];
-        case op_sub_f: case op_add_f:
-        case op_div_f: case op_mul_f:
-            if (!check("(ff)f")) return false;
-            break;
-        case op_jz_l: case op_jlz_l:
-        case op_jgz_l: case op_jnz_l:
-            if (!check_jump()) return false;
-            if (!check("(l)")) return false;
-            break;
-        case op_inc_l: case op_dec_l:
-        case op_neg_l: case op_not_l:
-            if (!check("(l)l")) return false;
-            break;
-        case op_jz_i: case op_jlz_i:
-        case op_jgz_i: case op_jnz_i:
-            if (!check_jump()) return false;
-            if (!check("(i)")) return false;
-            break;
-        case op_inc_i: case op_dec_i:
-        case op_neg_i: case op_not_i:
-            if (!check("(i)i")) return false;
-            break;
-        case op_neg_d:
-            if (!check("(d)d")) return false;
-            break;
-        case op_neg_f:
-            if (!check("(f)f")) return false;
-            break;
-        case op_tod_f:
-            if (!check("(f)d")) return false;
-            break;
-        case op_tod_i:
-            if (!check("(i)d")) return false;
-            break;
-        case op_tod_l:
-            if (!check("(l)d")) return false;
-            break;
-        case op_tof_d:
-            if (!check("(d)f")) return false;
-            break;
-        case op_tof_i:
-            if (!check("(i)f")) return false;
-            break;
-        case op_tof_l:
-            if (!check("(l)f")) return false;
-            break;
-        case op_toi_d:
-            if (!check("(d)i")) return false;
-            break;
-        case op_toi_f:
-            if (!check("(f)i")) return false;
-            break;
-        case op_toi_l:
-            if (!check("(l)i")) return false;
-            break;
-        case op_tol_d:
-            if (!check("(d)l")) return false;
-            break;
-        case op_tol_f:
-            if (!check("(f)l")) return false;
-            break;
-        case op_tol_i:
-            if (!check("(i)l")) return false;
-            break;
-        case op_ldc_l:
-            if (!check("()l")) return false;
-            op += sizeof(int64_t);
-            break;
-        case op_ldi_l:
-            if (!check("()l")) return false;
-            util::read_im<int16_t>(op, wide);
-            break;
-        case op_ld_l:
-            if (!check("()l")) return false;
-            if (!check_global('l')) return false;
-            break;
-        case op_lda_l:
-            if (!check("()l")) return false;
-            if (!check_local('l')) return false;
-            break;
-        case op_ldc_i:
-            if (!check("()i")) return false;
-            op += sizeof(int32_t);
-            break;
-        case op_ld_i:
-            if (!check("()i")) return false;
-            if (!check_global('i')) return false;
-            break;
-        case op_lda_i:
-            if (!check("()i")) return false;
-            if (!check_local('i')) return false;
-            break;
-        case op_ldi_i:
-            if (!check("()i")) return false;
-            util::read_im<int16_t>(op, wide);
-            break;
-        case op_ldc_f:
-            if (!check("()f")) return false;
-            op += sizeof(float);
-            break;
-        case op_ld_f:
-            if (!check("()f")) return false;
-            if (!check_global('f')) return false;
-            break;
-        case op_lda_f:
-            if (!check("()f")) return false;
-            if (!check_local('f')) return false;
-            break;
-        case op_ld_d:
-            if (!check("()d")) return false;
-            if (!check_global('d')) return false;
-            break;
-        case op_lda_d:
-            if (!check("()d")) return false;
-            if (!check_local('d')) return false;
-            break;
-        case op_ldc_d:
-            if (!check("()d")) return false;
-            op += sizeof(double);
-            break;
-        case op_dup_i:
-            if (!check("(i)ii") &&
-                !check("(f)ff")) return false;
-            break;
-        case op_dup_l:
-            if (!check("(l)ll") &&
-                !check("(d)dd")) return false;
-            break;
-        case op_dup2_i:
-            if (!check("(ii)iiii") &&
-                !check("(if)ifif") &&
-                !check("(fi)fifi") &&
-                !check("(ff)ffff")) return false;
-            break;
-        case op_dup2_l:
-            if (!check("(ll)llll") &&
-                !check("(ld)ldld") &&
-                !check("(dl)dldl") &&
-                !check("(dd)dddd")) return false;
-            break;
-        case op_drop2_i:
-            if (!check("(ii)") &&
-                !check("(if)") &&
-                !check("(fi)") &&
-                !check("(ff)")) return false;
-            break;
-        case op_drop2_l:
-            if (!check("(ll)") &&
-                !check("(ld)") &&
-                !check("(dl)") &&
-                !check("(dd)")) return false;
-            break;
-        case op_drop_i:
-            if (!check("(i)") &&
-                !check("(f)")) return false;
-            break;
-        case op_drop_l:
-            if (!check("(l)") &&
-                !check("(d)")) return false;
-            break;
-        case op_swap_i:
-            if (!check("(ii)ii") &&
-                !check("(if)fi") &&
-                !check("(fi)if") &&
-                !check("(ff)ff")) return false;
-            break;
-        case op_swap_l:
-            if (!check("(ll)ll") &&
-                !check("(ld)dl") &&
-                !check("(dl)ld") &&
-                !check("(dd)dd")) return false;
-            break;
-        case op_st_d:
-            if (!check("(d)")) return false;
-            if (!check_global('d')) return false;
-            break;
-        case op_sta_d:
-            if (!check("(d)")) return false;
-            if (!check_local('d')) return false;
-            break;
-        case op_st_i:
-            if (!check("(i)")) return false;
-            if (!check_global('i')) return false;
-            break;
-        case op_sta_i:
-            if (!check("(i)")) return false;
-            if (!check_local('i')) return false;
-            break;
-        case op_st_l:
-            if (!check("(l)")) return false;
-            if (!check_global('l')) return false;
-            break;
-        case op_sta_l:
-            if (!check("(l)")) return false;
-            if (!check_local('l')) return false;
-            break;
-        case op_st_f:
-            if (!check("(f)")) return false;
-            if (!check_global('f')) return false;
-            break;
-        case op_sta_f:
-            if (!check("(f)")) return false;
-            if (!check_local('f')) return false;
-            break;
-        case op_jmp_:
-            return check_jump();
-            break;
-        case op_call_:
-            if (!check_call("")) return false;
-            break;
-        case op_call_d:
-            if (!check_call("d")) return false;
-            break;
-        case op_call_f:
-            if (!check_call("f")) return false;
-            break;
-        case op_call_i:
-            if (!check_call("i")) return false;
-            break;
-        case op_call_l:
-            if (!check_call("l")) return false;
-            break;
-        case op_tcall_:
-            throw std::logic_error("Unimplemented");
-        case op_hlt_:
-            return true;
-            break;
-        case op_ret_:
-            if (!check("()")) return false;
-            return env.fun->signature[env.fun->signature.size() - 1] == ')';
-        case op_ret_d:
-            if (!check("(d)")) return false;
-            return env.fun->signature[env.fun->signature.size() - 1] == 'd';
-        case op_ret_f:
-            if (!check("(f)")) return false;
-            return env.fun->signature[env.fun->signature.size() - 1] == 'f';
-        case op_ret_i:
-            if (!check("(i)")) return false;
-            return env.fun->signature[env.fun->signature.size() - 1] == 'i';
-        case op_ret_l :
-            if (!check("(l)")) return false;
-            return env.fun->signature[env.fun->signature.size() - 1] == 'l';
         default:
             std::cerr << "Unknown opcode " << std::hex << (uint32_t)cmd << std::endl;
             return false;
