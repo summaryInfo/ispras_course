@@ -17,6 +17,17 @@ uint32_t object_file::id(std::string &&name) {
     }
 }
 
+inline static size_t type_size(char typ) {
+    switch (typ) {
+    case 'i': return sizeof(int32_t);
+    case 'l': return sizeof(int64_t);
+    case 'f': return sizeof(float);
+    case 'd': return sizeof(double);
+    default:
+        throw std::logic_error("Unknown type in signature");
+    }
+}
+
 void object_file::swap(object_file &other) {
     std::swap(strtab, other.strtab);
     std::swap(strtab_offset, other.strtab_offset);
@@ -122,6 +133,8 @@ std::ostream &operator<<(std::ostream &str, const stack_state &state) {
     return str;
 }
 
+constexpr static uint8_t cmd_type_mask = 0x60;
+
 struct check_env {
     object_file *obj;
     function *fun;
@@ -177,8 +190,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             for (; it > arg_s && state; it--, state = state->next) {
                 if (std::isdigit(*it)) {
                     /* Polymorphic parameters */
-                    if ((*it < '5' && state->type != 'f' && state->type != 'i') ||
-                        (*it >= '5' && state->type != 'd' && state->type != 'l')) return false;
+                    if (type_size(state->type) != (1 + (*it >= '5'))*sizeof(int32_t)) return false;
                     poly[*it - '0'] = state->type;
                 } else if (*it != state->type) return false;
                 /* Disallow poping locals */
@@ -203,13 +215,17 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             return true;
         };
 
-        switch(cmd < insns.size() ? insns[cmd].iclass : ins_undef) {
-        case ins_jump: {
-            if (!check(insns[cmd].sig)) return false;
+        auto arg_im_check = [&]() -> bool {
             if (env.end - op < 1 + wide) {
                 std::cerr << "Unterminated instruction" << std::endl;
                 return false;
             }
+            return true;
+        };
+
+        switch(cmd < insns.size() ? insns[cmd].iclass : ins_undef) {
+        case ins_jump: {
+            if (!check(insns[cmd].sig) || !arg_im_check()) return false;
             auto disp = util::read_im<int16_t>(op, wide);
             if ((disp < 0 && op + disp < env.fun->code.begin()) || (disp > 0 && op + disp >= env.end)) {
                 std::cerr << "Jump is out of bounds" << std::endl;
@@ -221,11 +237,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             if (!check(insns[cmd].sig)) return false;
             break;
         case ins_local: {
-            if (!check(insns[cmd].sig)) return false;
-            if (env.end - op < 1 + wide) {
-                std::cerr << "Unterminated instruction" << std::endl;
-                return false;
-            }
+            if (!check(insns[cmd].sig) || !arg_im_check()) return false;
             int16_t disp = util::read_im<int16_t>(op, wide);
             if (disp >= 0) /* argument */ {
                 auto arg_s = env.fun->signature.find('(');
@@ -237,10 +249,9 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                  * indexing because local have different sizes */
 
                 std::size_t offset{}, i{arg_s + 1};
-                while (offset < std::size_t(disp) && i < arg_e) {
-                    char c = env.fun->signature[i++];
-                    offset += 1 + (c == 'l' || c == 'd');
-                }
+                while (offset < std::size_t(disp) && i < arg_e)
+                    offset += type_size(env.fun->signature[i++]) / sizeof(int32_t);
+
                 if (i > arg_e || offset != std::size_t(disp) ||
                     env.fun->signature[i] != insns[cmd].type) {
 
@@ -249,11 +260,8 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 }
             } else /* local */ {
                 std::size_t offset{}, i{};
-                while (offset < std::size_t(-1 - disp) &&
-                       i < env.fun->locals.size()) {
-                    char c = env.fun->locals[i];
-                    offset += 1 + (c == 'l' || c == 'd');
-                }
+                while (offset < std::size_t(-1 - disp) && i < env.fun->locals.size())
+                    offset += type_size(env.fun->locals[i]) / sizeof(int32_t);
 
                 if (i >= env.fun->locals.size() ||
                     offset != std::size_t(-1 - disp) ||
@@ -265,11 +273,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             }
         } break;
         case ins_global: {
-            if (!check(insns[cmd].sig)) return false;
-            if (env.end - op < 1 + wide) {
-                std::cerr << "Unterminated instruction" << std::endl;
-                return false;
-            }
+            if (!check(insns[cmd].sig) || !arg_im_check()) return false;
             uint16_t disp = util::read_im<uint16_t, uint8_t>(op, wide);
             auto res = disp < env.obj->globals.size() &&
                        env.obj->globals[disp].type == insns[cmd].type;
@@ -280,22 +284,12 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
         } break;
         case ins_const: {
             if (!check(insns[cmd].sig)) return false;
-            switch (cmd) {
+            switch (cmd & ~cmd_type_mask) {
             case op_ldi_i:
-            case op_ldi_l:
                 util::read_im<int16_t>(op, wide);
                 break;
             case op_ldc_i:
-                op += sizeof(int32_t);
-                break;
-            case op_ldc_l:
-                op += sizeof(int64_t);
-                break;
-            case op_ldc_f:
-                op += sizeof(float);
-                break;
-            case op_ldc_d:
-                op += sizeof(double);
+                op += type_size(insns[cmd].type);
                 break;
             default:
                 throw std::logic_error("Oops 5");
@@ -305,10 +299,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             if (cmd == op_tcall_)
                 throw std::logic_error("Unimplemented");
 
-            if (env.end - op < 1 + wide) {
-                std::cerr << "Unterminated instruction" << std::endl;
-                return false;
-            }
+            if (!arg_im_check()) return false;
             uint16_t disp = util::read_im<uint16_t, uint8_t>(op, wide);
 
             auto &sig = env.obj->functions[disp].signature;
@@ -353,14 +344,7 @@ static const char *validate_functions(object_file &obj) {
         std::shared_ptr<stack_state> stk;
 
         for (char c : fn.locals) {
-            switch (c) {
-            case 'i': fn.frame_size += sizeof(int32_t); break;
-            case 'l': fn.frame_size += sizeof(int64_t); break;
-            case 'f': fn.frame_size += sizeof(float); break;
-            case 'd': fn.frame_size += sizeof(double); break;
-            default:
-                return "Unknown type in signature";
-            }
+            fn.frame_size += type_size(c);
             /* Build initial stack state */
             stk = std::make_shared<stack_state>(stk, c);
         }
@@ -377,16 +361,7 @@ static const char *validate_functions(object_file &obj) {
             return "Unknown return type in signature";
 
         std::string arg_sig(fn.signature.substr(1, clo - 1));
-        for (char c : arg_sig) {
-            switch (c) {
-            case 'i': fn.args_size += sizeof(int32_t); break;
-            case 'l': fn.args_size += sizeof(int64_t); break;
-            case 'f': fn.args_size += sizeof(float); break;
-            case 'd': fn.args_size += sizeof(double); break;
-            default:
-                return "Unknown type in signature";
-            }
-        }
+        for (char c : arg_sig) fn.args_size += type_size(c);
 
         /* Code type annotation */
         check_env env = {&obj, &fn, {}, fn.code.end()};
