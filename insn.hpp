@@ -3,6 +3,19 @@
 #include <stdexcept>
 #include <vector>
 
+inline static size_t type_size(char typ) {
+    switch (typ) {
+    case 'i': return sizeof(int32_t);
+    case 'l': return sizeof(int64_t);
+    case 'f': return sizeof(float);
+    case 'd': return sizeof(double);
+    default:
+        throw std::logic_error("Unknown type in signature");
+    }
+}
+
+constexpr static uint8_t cmd_type_mask = 0x60;
+
 inline static const char *typid_to_type(char id) {
     switch(id) {
     case 'i': return "int";
@@ -35,7 +48,7 @@ struct opdesc {
     const char *sig;
 };
 
-static std::vector<opdesc> insns {
+static const std::vector<opdesc> insns {
     {"hlt", ins_undef, 0, "()"},
     {"ld.i", ins_local, 'i', "()i"},
     {"st.i", ins_local, 'i', "(i)"},

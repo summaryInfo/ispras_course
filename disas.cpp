@@ -4,6 +4,21 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
+
+template<typename It>
+std::string string_of_type(char type, It &ptr) {
+    std::stringstream ss;
+    switch (type) {
+    case 'i': ss << util::read_next<int32_t>(ptr); break;
+    case 'l': ss << util::read_next<int64_t>(ptr); break;
+    case 'f': ss << util::read_next<float>(ptr); break;
+    case 'd': ss << util::read_next<double>(ptr); break;
+    default:
+        throw std::logic_error("Oops, unknown type");
+    }
+    return ss.str();
+}
 
 void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, std::vector<uint8_t> &stab) {
 
@@ -14,7 +29,8 @@ void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, 
     std::size_t labn{};
 
     for (auto op = fn.code.begin(); op < fn.code.end(); ) {
-        switch(insns[*op++].iclass) {
+        uint8_t cmd = *op++;
+        switch(insns[cmd].iclass) {
         case ins_return:
         case ins_undef:
         case ins_plain:
@@ -29,25 +45,15 @@ void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, 
             util::read_im<int16_t>(op, wide);
             break;
         case ins_const:
-            switch(op[-1]) {
+            switch(cmd & ~cmd_type_mask) {
             case op_ldi_i:
-            case op_ldi_l:
                 util::read_im<int16_t>(op, wide);
                 break;
             case op_ldc_i:
-                op += sizeof(int32_t);
-                break;
-            case op_ldc_l:
-                op += sizeof(int64_t);
-                break;
-            case op_ldc_f:
-                op += sizeof(float);
-                break;
-            case op_ldc_d:
-                op += sizeof(double);
+                op += type_size(insns[cmd].type);
                 break;
             default:
-                throw std::logic_error("Oops 2");
+                throw std::logic_error("Oops, bug");
             }
             break;
         case ins_wide:
@@ -102,28 +108,15 @@ void disas_code(const object_file &obj, std::ostream &ostr, const function &fn, 
             ostr << " " << &stab[obj.globals[disp].name];
         } break;
         case ins_const:
-            switch(op[-1]) {
+            switch(op[-1] & ~cmd_type_mask) {
             case op_ldi_i:
-            case op_ldi_l: {
-                int32_t cons = util::read_im<int16_t>(op, wide);
-                ostr << " $" << cons;
-            } break;
-            case op_ldc_i: {
-                int32_t cons = util::read_next<int32_t>(op);
-                ostr << " $" << cons;
-            } break;
-            case op_ldc_l: {
-                auto cons = util::read_next<int64_t>(op);
-                ostr << " $" << cons;
-            } break;
-            case op_ldc_f: {
-                auto cons = util::read_next<float>(op);
-                ostr << " $" << cons;
-            } break;
-            case op_ldc_d: {
-                auto cons = util::read_next<double>(op);
-                ostr << " $" << cons;
-            } break;
+                ostr << " $" << util::read_im<int16_t>(op, wide);
+                break;
+            case op_ldc_i:
+                ostr << " $" << string_of_type(insn.type, op);
+                break;
+            default:
+                throw std::logic_error("Oops, bug");
             }
             [[fallthrough]];
         case ins_wide:
@@ -142,15 +135,8 @@ void disas_object(const object_file &obj, const std::string &file, std::ostream 
     for (const auto &gl : obj.globals) {
         ostr << ".global " << typid_to_type(gl.type) << " " << &stab[gl.name];
         if (gl.flags & gf_init) {
-            const auto ptr = reinterpret_cast<const uint8_t*>(&gl.init_value);
-            switch(gl.type) {
-            case 'i': ostr << " " << util::read_at<int32_t>(ptr); break;
-            case 'l': ostr << " " << util::read_at<int64_t>(ptr); break;
-            case 'f': ostr << " " << util::read_at<float>(ptr); break;
-            case 'd': ostr << " " << util::read_at<double>(ptr); break;
-            default:
-                throw std::logic_error("Oops 3");
-            }
+            auto ptr = reinterpret_cast<const uint8_t*>(&gl.init_value);
+            ostr << " " << string_of_type(gl.type, ptr);
         }
         ostr << std::endl;
     }
@@ -165,22 +151,26 @@ void disas_object(const object_file &obj, const std::string &file, std::ostream 
         if (p0 == fn.signature.npos || p1 == fn.signature.npos || p0 >= p1)
             throw std::logic_error("Oops 4");
 
+        std::size_t i = 0;
+
         /* Parameters */
         for(auto pos = p1; --pos > p0;) {
             ostr << ".param "
                       << typid_to_type(fn.signature[pos])
                       << " par"
-                      << p1 - pos - 1
+                      << i
                       << std::endl;
+            i += type_size(fn.signature[pos]) / sizeof(int32_t);
         }
         /* Local variables */
-        std::size_t i = 0;
+        i = 0;
         for (auto c : fn.locals) {
             ostr << ".local "
                       << typid_to_type(c)
                       << " loc"
-                      << i++
+                      << i
                       << std::endl;
+            i += type_size(c) / sizeof(int32_t);
         }
 
         /* Code */

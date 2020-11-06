@@ -17,17 +17,6 @@ uint32_t object_file::id(std::string &&name) {
     }
 }
 
-inline static size_t type_size(char typ) {
-    switch (typ) {
-    case 'i': return sizeof(int32_t);
-    case 'l': return sizeof(int64_t);
-    case 'f': return sizeof(float);
-    case 'd': return sizeof(double);
-    default:
-        throw std::logic_error("Unknown type in signature");
-    }
-}
-
 void object_file::swap(object_file &other) {
     std::swap(strtab, other.strtab);
     std::swap(strtab_offset, other.strtab_offset);
@@ -132,8 +121,6 @@ std::ostream &operator<<(std::ostream &str, const stack_state &state) {
     str << "]";
     return str;
 }
-
-constexpr static uint8_t cmd_type_mask = 0x60;
 
 struct check_env {
     object_file *obj;
