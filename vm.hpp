@@ -15,7 +15,6 @@ using native_function = void(*)(class vm_state&);
 /** Virtual machine state */
 class vm_state {
     std::vector<uint8_t> stack;
-    std::map<uint32_t, native_function> nfunc;
 
     // TODO For now globals array serves the purpose of memory
     /* std::vector<uint8_t> memory; */
@@ -150,7 +149,7 @@ public:
         // TODO Use memory instead of globals description init_value as a variable storage
         // return util::read_at<T>(memory.data() + n*sizeof(uint32_t));
 
-        return util::read_at<T>(reinterpret_cast<uint8_t*>(&object.globals[n].init_value));
+        return util::read_at<T>(reinterpret_cast<uint8_t *>(&object.globals[n].init_value));
     }
 
     /**
@@ -164,7 +163,7 @@ public:
         // TODO Use memory instead of globals description init_value as a variable storage
         // util::write_at<T>(memory.data() + n*sizeof(uint32_t), value);
 
-        return util::write_at<T>(reinterpret_cast<uint8_t*>(&object.globals[n].init_value), value);
+        return util::write_at<T>(reinterpret_cast<uint8_t *>(&object.globals[n].init_value), value);
     }
 
     /**
@@ -197,10 +196,9 @@ public:
             std::memset(sp, 0, fr_size);
         } else {
             /* This is native function */
-            auto nf = nfunc.find(idx);
-            if (nf == nfunc.end())
-                throw std::logic_error("Undefined native function");
-            nf->second(*this);
+            auto nf = reinterpret_cast<native_function>(object.functions[idx].native_function);
+            if (!nf) throw std::logic_error("Undefined native function");
+            nf(*this);
         }
     }
 

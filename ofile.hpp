@@ -63,6 +63,7 @@ struct function {
     uint32_t frame_size{};
     uint32_t args_size{};
     std::vector<uint8_t> code;
+    void *native_function{};
 
     function(strtab_index name_, std::string &&signature_, std::string &&locals_,
              uint32_t frame_size_, uint32_t args_size_, std::vector<uint8_t> &&code_) :
