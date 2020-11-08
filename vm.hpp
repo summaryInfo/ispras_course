@@ -110,6 +110,7 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value> push(T value) {
+        if (sp - stack.data() < sizeof(value)) throw std::out_of_range("Stack overflow");
         util::write_prev(sp, value);
     }
 
@@ -190,6 +191,8 @@ public:
             ip = object.functions[idx].code.data();
             /* Allocate space on stack for locals */
             auto fr_size = object.functions[idx].frame_size;
+            if (sp - stack.data() < fr_size)
+                throw std::out_of_range("Stack overflow");
             sp -= fr_size;
             /* Frame should be initially zeroed*/
             std::memset(sp, 0, fr_size);
