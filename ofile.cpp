@@ -295,9 +295,8 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             if (!res) {
                 std::cerr << "Function call type interface violation of "
                           << std::hex << (uint32_t)cmd << std::endl;
+                return false;
             }
-            return res;
-
         } break;
         case ins_return: {
             if (!check(insns[cmd].sig)) return false;
