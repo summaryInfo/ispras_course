@@ -89,8 +89,7 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value, T> pop() {
-        T tmp = util::read_next<T>(sp);
-        return tmp;
+        return util::read_next<T>(sp);
     }
 
     /**
@@ -184,7 +183,7 @@ public:
         if (object.functions[idx].code.size()) {
             push<function *>(ip_fun);
             push<const uint8_t *>(ip);
-            push<uint8_t *>(*&fp);
+            push<uint8_t *>(fp);
 
             fp = sp;
             ip_fun = &object.functions[idx];

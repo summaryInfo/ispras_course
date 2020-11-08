@@ -26,9 +26,9 @@ $(ASM): $(ASMOBJ)
 $(DIS): $(DISOBJ)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(DISOBJ) $(LDLIBS) -o $@
 
-vm.o: util.hpp vm.hpp ofile.hpp
-as.o: util.hpp ofile.hpp
-disas.o: util.hpp ofile.hpp
-ofile.o: util.hpp ofile.hpp
+vm.o: util.hpp vm.hpp ofile.hpp insn.hpp
+as.o: util.hpp ofile.hpp insn.hpp
+disas.o: util.hpp ofile.hpp insn.hpp
+ofile.o: util.hpp ofile.hpp insn.hpp
 
 .PHONY: all clean run
