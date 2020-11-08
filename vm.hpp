@@ -110,7 +110,8 @@ public:
      */
     template<typename T>
     std::enable_if_t<std::is_scalar<T>::value> push(T value) {
-        if (sp - stack.data() < sizeof(value)) throw std::out_of_range("Stack overflow");
+        if (sp - stack.data() < static_cast<ptrdiff_t>(sizeof(value)))
+            throw std::out_of_range("Stack overflow");
         util::write_prev(sp, value);
     }
 
