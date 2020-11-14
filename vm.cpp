@@ -367,6 +367,10 @@ vm_state::vm_state(std::size_t stack_size, std::string path) {
     defnative(print_d, "(d)", "print_d");
     defnative(scan_d, "()d", "scan_d");
     defnative(sqrt_d, "(d)d", "sqrt_d");
+
+    for (function &fn : object.functions)
+        if (!fn.code.size())
+            throw std::logic_error("Unbound native function");
 }
 
 int main(int argc, char **argv) {
