@@ -55,7 +55,6 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
         // because of "{a \over b} syntax"
 
         struct expr **it = expr->children;
-        dump_tree_tex(out, *it++, info->prio);
 
         _Bool has_over = 0;
         for (struct expr **in = it; in < &expr->children[expr->n_child]; in++)
@@ -137,7 +136,6 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
 
         struct expr **it = expr->children;
         if (expr->n_child == 1) fputs(info->name, out);
-
         dump_tree_string(out, *it++, info->prio);
 
         while (it < &expr->children[expr->n_child]) {
@@ -171,7 +169,7 @@ void dump_tree(FILE *out, enum format fmt, struct expr *expr) {
     case fmt_tex:
         fputs("$$\n", out);
         dump_tree_tex(out, expr, MAX_PRIO);
-        fputs("\n$$\n\bye\n", out);
+        fputs("\n$$\n\\bye\n", out);
         break;
     }
     fflush(out);
