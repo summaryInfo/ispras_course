@@ -54,21 +54,19 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
         // special treatment in tex
         // because of "{a \over b} syntax"
 
-        struct expr **it = expr->children;
-
         _Bool has_over = 0;
-        for (struct expr **in = it; in < &expr->children[expr->n_child]; in++)
+        for (struct expr **in = expr->children; in < &expr->children[expr->n_child]; in++)
             has_over |= (*in)->tag == t_inverse;
 
         if (has_over) {
             fputc('{', out);
 
             int nput = 0;
-
+            struct expr **it = expr->children;
             while (it < &expr->children[expr->n_child]) {
                 struct expr *ch = *it++;
                 if (ch->tag != t_inverse) {
-                    fputs(info->tex_name, out);
+                    if (nput) fputs(info->tex_name, out);
                     dump_tree_tex(out, ch, info->prio);
                     nput++;
                 }
@@ -78,11 +76,14 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
 
             fputs("\\over ", out);
 
+            nput = 0;
+            it = expr->children;
             while (it < &expr->children[expr->n_child]) {
                 struct expr *ch = *it++;
                 if (ch->tag == t_inverse) {
-                    fputs(info->tex_name, out);
-                    dump_tree_tex(out, ch, info->prio);
+                    if (nput) fputs(info->tex_name, out);
+                    dump_tree_tex(out, ch->children[0], info->prio);
+                    nput++;
                 }
             }
 

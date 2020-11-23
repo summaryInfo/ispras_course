@@ -170,7 +170,7 @@ static struct expr *exp_2(struct state *st) /* * / */ {
         } else if (expect(st, tags[t_multiply].alt)) {
             struct expr *tmp = NULL;
             if (!(append_child(st, &tmp, t_inverse, exp_1(st), NULL))) break;
-            if (!(append_child(st, &node, t_add, first, tmp))) break;
+            if (!(append_child(st, &node, t_multiply, first, tmp))) break;
         } else break;
     }
 
