@@ -173,7 +173,7 @@ static struct expr *exp_2(struct state *st) /* * / */ {
             struct expr *tmp = NULL;
             if (!(append_child(st, &tmp, t_inverse, exp_1(st), NULL))) break;
             if (!(append_child(st, &node, t_add, first, tmp))) break;
-        }
+        } else break;
     }
 
     return node ? node : first;
@@ -190,7 +190,7 @@ static struct expr *exp_3(struct state *st) /* + - */ {
             struct expr *tmp = NULL;
             if (!append_child(st, &tmp, t_negate, exp_2(st), NULL)) break;
             if (!append_child(st, &node, t_add, first, tmp)) break;
-        }
+        } else break;
     }
 
     return node ? node : first;
