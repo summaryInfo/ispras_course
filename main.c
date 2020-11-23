@@ -10,7 +10,7 @@
 _Noreturn void usage(const char *argv0) {
     printf("Usage:\n"
            "\t%s [-f <format>] [-o <file>] <expr>\n"
-           "<format is one of tex, string, graph\n"
+           "<format> is one of tex, string, graph\n"
            "Default <file> is stdout\n", argv0);
     exit(0);
 }
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (argv[optind]) usage(argv[0]);
+    if (argc <= optind || !argv[optind]) usage(argv[0]);
 
     FILE *out = file ? fopen(file, "w") : stdout;
 
