@@ -35,6 +35,8 @@ Generate PDF file:
 
 ## Notes
 
+Use plain format for tex compilation.
+
 To compile stack without advanced debugging use:
 
     NDEBUG=1 make
