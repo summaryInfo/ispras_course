@@ -9,16 +9,17 @@ struct tag_info tags[] = {
 	[t_variable] =  {NULL, NULL, 0, 0},
 	[t_negate] =  {"-", "-", 1, 1},
 	[t_inverse] =  {NULL, "1/", 1, 2},
-	[t_multiply] =  {"\\cdot", "*", -1, 2, t_inverse, "/"},
+	[t_multiply] =  {"\\cdot ", "*", -1, 2, t_inverse, "/"},
 	[t_add] =  {"+", "+", -1, 3, t_negate, "-"},
 	[t_less] =  {"<", "<", 2, 4},
 	[t_greater] =  {">", ">", 2, 4},
 	[t_lessequal] =  {"<=", "<=", 2, 4},
 	[t_greaterequal] =  {">=", ">=", 2, 4},
 	[t_equal] =  {"=", "==", 2, 5},
-	[t_logical_not] =  {"\\lnot", "!", 1, 6},
-	[t_logical_and] =  {"\\land", "&&", -1, 7},
-	[t_logical_or] =  {"\\lor", "||", -1, 8},
+	[t_notequal] =  {"\\ne ", "!=", 2, 5},
+	[t_logical_not] =  {"\\lnot ", "!", 1, 6},
+	[t_logical_and] =  {"\\land ", "&&", -1, 7},
+	[t_logical_or] =  {"\\lor ", "||", -1, 8},
 };
 
 struct state {
@@ -41,9 +42,18 @@ inline static char peek(struct state *st) {
     return peek_nospace(st);
 }
 
+inline static double read_number(struct state *st) {
+    char *end = NULL;
+    double value = strtod(st->str, &end);
+    st->str = end;
+    return value;
+}
+
 inline static char next(struct state *st) {
     // does not skip spaces
-    return *st->str++;
+    char c = *st->str;
+    if (c) st->str++;
+    return c;
 }
 
 inline static _Bool expect(struct state *st, const char *str) {
@@ -53,7 +63,7 @@ inline static _Bool expect(struct state *st, const char *str) {
 
     skip_spaces(st);
 
-    while (*start == *str) start++, str++;
+    while (*start && *start == *str) start++, str++;
 
     if (!*str) {
         st->str = start;
@@ -66,16 +76,16 @@ inline static _Bool expect(struct state *st, const char *str) {
 
 inline static _Bool append_child(struct state *st, struct expr **node, enum tag tag, struct expr *first, struct expr *new) {
     size_t nch = *node ? (*node)->n_child : 1;
-    struct expr *tmp = realloc(node, sizeof(*tmp) + (!!new + nch)*sizeof(tmp));
+    struct expr *tmp = realloc(*node, sizeof(*tmp) + (!!new + nch)*sizeof(tmp));
     if (!tmp) {
         free_tree(new);
         st->success = 0;
         return 0;
     }
 
-
     if (!*node) {
         tmp->tag = tag;
+        tmp->n_child = 1;
         tmp->children[0] = first;
     }
 
@@ -88,6 +98,7 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
 }
 
 #define LIT_CAP_STEP(x) ((x) ? 4*(x)*3 : 16)
+#define MAX_NUMBER_LEN 128
 
 static struct expr *exp_8(struct state *st);
 
@@ -98,32 +109,19 @@ static struct expr *exp_0(struct state *st) /* const, var, () */ {
         return node;
     } else if (isdigit((unsigned)peek(st))) {
         // TODO Lets ignore base 2, 8 and 16 numbers for now...
-
-        double val = 0;
-        char ch;
-        while ((ch = next(st)) && isdigit((unsigned)ch))
-            val = val * 10 + (ch - '0');
-
-        if (peek_nospace(st) == '.') {
-            next(st);
-            int dot = 1;
-            while ((ch = next(st)) && isdigit((unsigned)ch))
-                val = val * 10 + (ch - '0'), dot *= 10;
-            val /= dot;
-        }
-
         struct expr *tmp = malloc(sizeof(*tmp));
         if (!tmp) {
             st->success = 0;
             return NULL;
         }
+
         tmp->tag = t_constant;
-        tmp->value = val;
+        tmp->value = read_number(st);
         return tmp;
     } else if (isalpha((unsigned)peek(st))) {
         size_t cap = 0, size = 0;
         char *str = NULL;
-        for (char ch; (ch = next(st)) && isalpha((unsigned)ch);) {
+        for (char ch; (ch = peek_nospace(st)) && isalpha((unsigned)ch);) {
             if (size + 1 >= cap) {
                 char *tmp = realloc(str, cap = LIT_CAP_STEP(cap));
                 if (!tmp) {
@@ -132,7 +130,7 @@ static struct expr *exp_0(struct state *st) /* const, var, () */ {
                 }
                 str = tmp;
             }
-            str[size++] = ch;
+            str[size++] = next(st);
         }
         str[size] = 0;
 
@@ -228,6 +226,8 @@ static struct expr *exp_6(struct state *st) /* ! */ {
 
     struct expr *first = exp_5(st), *node = NULL;
 
+    // TODO Optimize equality and comparisons here
+
     if (neg) append_child(st, &node, t_logical_not, first, NULL);
     
     return node ? node : first;
@@ -273,7 +273,7 @@ struct expr *parse_tree(const char *str) {
     st.success &= !peek(&st);
 
     if (!st.success) {
-        fprintf(stderr, "%*c\n%*c\n",
+        fprintf(stderr, "%s\n%*c\n%*c\n", str,
             (int)(st.str - str + 1), '^',
             (int)(st.str - str + 1), '|');
         fprintf(stderr, st.expected ?

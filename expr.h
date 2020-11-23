@@ -28,8 +28,8 @@ enum tag {
 };
 
 struct tag_info {
-    const char *name;
     const char *tex_name;
+    const char *name;
     int arity;
     int prio;
     enum tag alt_tag;
