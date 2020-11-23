@@ -75,7 +75,7 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
 
 
     if (!*node) {
-        tmp->tag = t_logical_or;
+        tmp->tag = tag;
         tmp->children[0] = first;
     }
 
@@ -84,7 +84,7 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
         tmp->n_child = nch + 1;
     }
 
-    return *node = tmp;
+    return (*node = tmp);
 }
 
 #define LIT_CAP_STEP(x) ((x) ? 4*(x)*3 : 16)
