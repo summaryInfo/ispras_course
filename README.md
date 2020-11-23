@@ -22,10 +22,16 @@ To compile program:
 
 Examples:
 
-    parse -f tex -o out.tex "(1+x)/2"
-    parse -f graph -o out.dot "x*y*x + --2"
-    parse  -o out.txt "!(123 < 1 && x / 2 >= y)"
-    parse "x + 2 < 4*x || x == 2"
+    ./parse -f tex -o out.tex "(1+x)/2"
+    ./parse -f graph -o out.dot "x*y*x + --2"
+    ./parse  -o out.txt "!(123 < 1 && x / 2 >= y)"
+    ./parse "x + 2 < 4*x || x == 2"
+
+Generate PNG file:
+
+    ./parse -f graph "1-2+3" | dot -Tpng >| out.png
+
+Generate PDF file:
 
 ## Notes
 
