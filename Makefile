@@ -5,7 +5,7 @@ OBJS := expr.o dump.o main.o
 ifdef NDEBUG
 CFLAGS += -O2 -flto -DNDEBUG=$(NDEBUG)
 else
-CFLAGS += -Og
+CFLAGS += -Og -g
 endif
 
 all: $(PROG)
