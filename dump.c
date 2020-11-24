@@ -166,6 +166,7 @@ void dump_tree(FILE *out, enum format fmt, struct expr *expr) {
         break;
     case fmt_string:
         dump_tree_string(out, expr, MAX_PRIO);
+        fputc('\n', out);
         break;
     case fmt_tex:
         fputs("$$\n", out);
