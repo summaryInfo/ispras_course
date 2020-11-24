@@ -26,57 +26,38 @@ struct tag_info tags[] = {
     [t_logical_or] =  {"\\lor ", "||", -1, 9},
 };
 
+#define LIT_CAP_STEP(x) ((x) ? 4*(x)*3 : 16)
 #define UNGET_BUF_LEN 16
 
 struct state {
-    FILE *in;
-    _Bool success;
+    // Input buffer
+    const char *inbuf;
+    // Last encountered line start
+    const char *last_line;
+    // Next expected token
     const char *expected;
-    // Portable way to unget more than one
-    // character (this is actually unnecesery in linux)
-    size_t unget_pos;
-    char unget_buf[UNGET_BUF_LEN];
-
-    // Last line start
-    long last_line;
+    _Bool success;
 };
 
 inline static char get(struct state *st) {
-    if (st->unget_pos) {
-        return st->unget_buf[--st->unget_pos];
-    } else {
-        int ch = fgetc(st->in);
-        return ch == EOF ? 0 : ch;
-    }
-}
-
-inline static void unget(struct state *st, char ch) {
-    if (ch && ungetc(ch, st->in) == EOF) {
-        if (st->unget_pos + 1 >= UNGET_BUF_LEN) {
-            fprintf(stderr, "Unget buffer exhaused\n");
-            abort();
-        }
-        st->unget_buf[st->unget_pos++] = ch;
-    }
+    return *st->inbuf ? *st->inbuf++ : 0;
 }
 
 inline static void skip_spaces(struct state *st) {
-    long last = 0;
-    for (int ch; (ch = get(st)); ) {
+    const char *last = 0;
+    for (char ch; (ch = get(st)); ) {
         // Remember new line position
-        if (ch == '\n') last = ftell(st->in) - st->unget_pos + 1;
+        if (ch == '\n') last = st->inbuf;
         if (!isspace((unsigned)ch)) {
-            st->last_line = last;
-            unget(st, ch);
+            if (last) st->last_line = last;
+            st->inbuf--;
             break;
         }
     }
 }
 
 inline static char peek_nospace(struct state *st) {
-    char ch = get(st);
-    unget(st, ch);
-    return ch;
+    return *st->inbuf;
 }
 
 inline static char peek_space(struct state *st) {
@@ -86,10 +67,12 @@ inline static char peek_space(struct state *st) {
 
 inline static double expect_number(struct state *st) {
     double value = 0;
-    if (st->unget_pos || fscanf(st->in, "%lg", &value) != 1) {
+    ssize_t len = 0;
+    if (sscanf(st->inbuf, "%lg%zn", &value, &len) != 1) {
         st->expected = "<number>";
         st->success = 0;
     }
+    st->inbuf += len;
     return value;
 }
 
@@ -98,21 +81,13 @@ inline static _Bool expect(struct state *st, const char *str) {
 
     skip_spaces(st);
 
-    const char *str0 = str;
-    for (int ch; *str && (ch = get(st)); str++) {
-        if (ch != *str) {
-            unget(st, ch);
-            break;
-        }
-    }
+    const char *str0 = st->inbuf;
+    while (*str && *str0 == *str) str0++, str++;
 
-    if (*str) {
-        st->expected = str;
-        while (--str >= str0) unget(st, *str);
-        return 0;
-    }
+    if (*str) st->expected = str;
+    else st->inbuf = str0;
 
-    return 1;
+    return !*str;
 }
 
 inline static _Bool append_child(struct state *st, struct expr **node, enum tag tag, struct expr *first, struct expr *new) {
@@ -138,9 +113,6 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
 
     return (*node = tmp);
 }
-
-#define LIT_CAP_STEP(x) ((x) ? 4*(x)*3 : 16)
-#define MAX_NUMBER_LEN 128
 
 static struct expr *exp_8(struct state *st);
 
@@ -317,33 +289,32 @@ void free_tree(struct expr *expr) {
     free(expr);
 }
 
-struct expr *parse_tree(FILE *in) {
-    struct state st = {in, 1};
+struct expr *parse_tree(const char *in) {
+    struct state st = {
+        .inbuf = in,
+        .success = 1,
+        .last_line = in
+    };
 
     struct expr *tree = exp_8(&st);
 
     st.success &= !peek_space(&st);
 
-
     if (!st.success) {
         // Output error in human readable format
-        long res = ftell(in) - st.last_line;
-        fseek(in, st.last_line, SEEK_SET);
+        int res = in - st.last_line;
+        size_t slen = strlen(st.last_line);
 
-        char *str = NULL;
-        size_t size = 0, count;
+        const char *end = memchr(st.last_line, '\n', slen);
+        int len = end ? end - st.last_line : (int)slen;
 
-        if ((count = getline(&str, &size, in)) > 0) {
-            if (str[count - 1] == '\n') str[count - 1] = 0;
-            fprintf(stderr, "%s\n%*c\n%*c\n", str,
-                (int)(res + 1), '^', (int)(res + 1), '|');
-        }
+        fprintf(stderr, "%*s\n%*c\n%*c\n", len, st.last_line,
+            (int)(res + 1), '^', (int)(res + 1), '|');
 
         fprintf(stderr, st.expected ?
-            "Unexpected character at %zu, expected '%s'\n" :
-            "Internal error at %zu\n", res, st.expected);
+            "Unexpected character at %d, expected '%s'\n" :
+            "Internal error at %d\n", res, st.expected);
 
-        free(str);
         free_tree(tree);
         return NULL;
     }

@@ -88,7 +88,7 @@ void dump_tree(FILE *out, enum format fmt, struct expr *expr);
  * @param[in] str expression string
  * @return parsed AST
  */
-struct expr *parse_tree(FILE *in);
+struct expr *parse_tree(const char *in);
 
 /**
  * Free AST

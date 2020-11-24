@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 enum retcode {
     ERC_WRONG_EXPR = 1,
@@ -21,6 +25,23 @@ _Noreturn void usage(const char *argv0) {
            "<format> is one of tex, string, graph\n"
            "Default <outfile> is stdout\n", argv0, argv0);
     exit(ERC_WRONG_PARAM);
+}
+
+const char *make_input(const char *input, const char *arg, size_t *size) {
+    if (!input) return arg;
+
+    char *addr = NULL;
+    int fd = open(input, O_RDONLY);
+
+    struct stat stt;
+    if (fd >= 0 && fstat(fd, &stt) >= 0) {
+        *size = stt.st_size + 1;
+        char *addr = mmap(NULL, *size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+        if (addr == MAP_FAILED) addr = NULL;
+    }
+
+    close(fd);
+    return addr;
 }
 
 int main(int argc, char **argv) {
@@ -51,8 +72,8 @@ int main(int argc, char **argv) {
 
     if (!input && (argc <= optind || !argv[optind])) usage(argv[0]);
 
-    FILE *in = input ? fopen(input, "r") :
-                       fmemopen(argv[optind], strlen(argv[optind]), "r");
+    size_t size;
+    const char *in = make_input(input, argv[optind], &size);
     if (!in) return ERC_NO_IN_FILE;
 
     FILE *out = output ? fopen(output, "w") : stdout;
@@ -62,6 +83,8 @@ int main(int argc, char **argv) {
     if (!exp) return ERC_WRONG_EXPR;
 
     dump_tree(out, fmt, exp);
+
+    if (input) munmap((void *)in, size);
 
     free_tree(exp);
     return 0;
