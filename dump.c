@@ -9,16 +9,16 @@ static int dump_tree_graph(FILE *out, struct expr *expr, int index) {
     struct tag_info *info = &tags[tag];
 
     if (tag == t_constant) {
-        fprintf(out, "\tn%d[label=\"const %lg\"];\n", index, expr->value);
+        fprintf(out, "\tn%d[label=\"const %lg\", shape=box, fillcolor=lightgrey, style=filled];\n", index, expr->value);
     } else if (tag == t_variable) {
-        fprintf(out, "\tn%d[label=\"var %s\"];\n", index, expr->id);
+        fprintf(out, "\tn%d[label=\"var %s\", shape=box];\n", index, expr->id);
     } else {
         assert((tags[tag].arity < 0 && expr->n_child > 1) || (size_t)tags[tag].arity == expr->n_child);
 
         struct expr **it = expr->children;
         int node_index = index++, next_index;
 
-        fprintf(out, "\tn%d[label=\"%s\"];\n", node_index, info->name ? info->name : info->alt);
+        fprintf(out, "\tn%d[label=\"%s\", shape=triangle, color=lightblue, style=filled];\n", node_index, info->name ? info->name : info->alt);
 
         do {
             next_index = dump_tree_graph(out, *it++, index);
