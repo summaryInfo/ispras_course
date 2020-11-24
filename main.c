@@ -43,10 +43,14 @@ int main(int argc, char **argv) {
 
     if (argc <= optind || !argv[optind]) usage(argv[0]);
 
+    char *buf = argv[optind];
+    FILE *in = fmemopen(buf, strlen(argv[optind]), "r");
+    if (!in) return 1;
+
     FILE *out = file ? fopen(file, "w") : stdout;
+    if (!out) return 2;
 
-
-    struct expr *exp = parse_tree(argv[optind]);
+    struct expr *exp = parse_tree(in);
     if (!exp) return 1;
 
     dump_tree(out, fmt, exp);

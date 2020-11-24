@@ -61,5 +61,5 @@ enum format {
 };
 
 void dump_tree(FILE *out, enum format fmt, struct expr *expr);
-struct expr *parse_tree(const char *str);
+struct expr *parse_tree(FILE *in);
 void free_tree(struct expr *expr);

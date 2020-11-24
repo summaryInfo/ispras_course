@@ -1,8 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "expr.h"
 
 #include <assert.h>
 #include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct tag_info tags[] = {
 	[t_constant] =  {NULL, NULL, 0, 0},
@@ -23,18 +26,25 @@ struct tag_info tags[] = {
 };
 
 struct state {
-    const char *str;
-    int depth;
+    FILE *in;
     _Bool success;
     const char *expected;
 };
 
 inline static void skip_spaces(struct state *st) {
-    while (*st->str && isspace((unsigned)*st->str)) st->str++;
+    for (int c; (c = fgetc(st->in)) != EOF; ) {
+        if (!isspace((unsigned)c)) {
+            ungetc(c, st->in);
+            break;
+        }
+    }
 }
 
 inline static char peek_nospace(struct state *st) {
-    return *st->str;
+    int c = fgetc(st->in);
+    if (c == EOF) return 0;
+    ungetc(c, st->in);
+    return c;
 }
 
 inline static char peek(struct state *st) {
@@ -42,36 +52,35 @@ inline static char peek(struct state *st) {
     return peek_nospace(st);
 }
 
-inline static double read_number(struct state *st) {
-    char *end = NULL;
-    double value = strtod(st->str, &end);
-    st->str = end;
+inline static double expect_number(struct state *st) {
+    double value = 0;
+    if (fscanf(st->in, "%lg", &value) != 1) {
+        st->expected = "<number>";
+        st->success = 0;
+    }
     return value;
 }
 
 inline static char next(struct state *st) {
     // does not skip spaces
-    char c = *st->str;
-    if (c) st->str++;
-    return c;
+    int c = fgetc(st->in);
+    return c == EOF ? 0 : c;
 }
 
 inline static _Bool expect(struct state *st, const char *str) {
-    const char *start = st->str;
-
     if (!st->success) return 0;
 
     skip_spaces(st);
 
-    while (*start && *start == *str) start++, str++;
-
-    if (!*str) {
-        st->str = start;
-        return 1;
-    } else {
-        st->expected = str;
-        return 0;
+    for (int c; *str && (c = fgetc(st->in)) != EOF; str++) {
+        if (c != *str) {
+            ungetc(c, st->in);
+            st->expected = str;
+            return 0;
+        }
     }
+
+    return !*str;
 }
 
 inline static _Bool append_child(struct state *st, struct expr **node, enum tag tag, struct expr *first, struct expr *new) {
@@ -116,7 +125,7 @@ static struct expr *exp_0(struct state *st) /* const, var, () */ {
         }
 
         tmp->tag = t_constant;
-        tmp->value = read_number(st);
+        tmp->value = expect_number(st);
         return tmp;
     } else if (isalpha((unsigned)peek(st))) {
         size_t cap = 0, size = 0;
@@ -144,6 +153,7 @@ static struct expr *exp_0(struct state *st) /* const, var, () */ {
         return tmp;
     }
     st->success = 0;
+    st->expected = "<number> or <variable>";
     return NULL;
 }
 
@@ -256,8 +266,6 @@ void free_tree(struct expr *expr) {
 
     if (expr->tag == t_variable) free(expr->id);
     else if (expr->tag != t_constant) {
-        assert((tags[expr->tag].arity < 0 && expr->n_child > 1) ||
-               (size_t)tags[expr->tag].arity == expr->n_child);
         for (size_t i = 0; i < expr->n_child; i++)
             free_tree(expr->children[i]);
     }
@@ -265,24 +273,35 @@ void free_tree(struct expr *expr) {
     free(expr);
 }
 
-struct expr *parse_tree(const char *str) {
-    struct state st = {str, 0, 1};
+struct expr *parse_tree(FILE *in) {
+    struct state st = {in, 1};
 
-    struct expr *res = exp_8(&st);
+    struct expr *tree = exp_8(&st);
 
     st.success &= !peek(&st);
 
     if (!st.success) {
-        fprintf(stderr, "%s\n%*c\n%*c\n", str,
-            (int)(st.str - str + 1), '^',
-            (int)(st.str - str + 1), '|');
+        long res = ftell(in);
+        fseek(in, 0, SEEK_SET);
+
+        char *str = NULL;
+        size_t size = 0;
+
+        if (getline(&str, &size, in) >= 0) {
+            fprintf(stderr, "%s\n%*c\n%*c\n", str,
+                (int)(res + 1), '^', (int)(res + 1), '|');
+        }
+
         fprintf(stderr, st.expected ?
             "Unexpected character at %zu, expected '%s'\n" :
-            "Internal error at %zu\n", st.str - str, st.expected);
+            "Internal error at %zu\n", res, st.expected);
+
+        free(str);
+        free_tree(tree);
         return NULL;
     }
 
-    return res;
+    return tree;
 }
 
 
