@@ -96,9 +96,12 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
 
         struct expr **it = expr->children;
         if (expr->n_child == 1) fputs(info->tex_name, out);
+        fputc('{', out);
         dump_tree_tex(out, *it++, info->prio);
+        fputc('}', out);
 
         assert(info->tex_name);
+
 
         while (it < &expr->children[expr->n_child]) {
             struct expr *ch = *it++;
@@ -109,8 +112,11 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
                 fputs(info->alt, out);
             } else fputs(info->tex_name, out);
 
+            fputc('{', out);
             dump_tree_tex(out, ch, info->prio);
+            fputc('}', out);
         }
+
 
         if (outer_prio < info->prio) fputs("\\right)", out);
     }

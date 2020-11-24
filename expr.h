@@ -13,6 +13,7 @@
 enum tag {
     t_constant = 1,
     t_variable,
+    t_power,
     t_negate,
     t_inverse,
     t_add,

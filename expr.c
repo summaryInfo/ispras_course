@@ -8,21 +8,22 @@
 #include <string.h>
 
 struct tag_info tags[] = {
-    [t_constant] =  {NULL, NULL, 0, 0},
-    [t_variable] =  {NULL, NULL, 0, 0},
-    [t_negate] =  {"-", "-", 1, 1},
-    [t_inverse] =  {NULL, "1/", 1, 2},
-    [t_multiply] =  {"\\cdot ", "*", -1, 2, t_inverse, "/"},
-    [t_add] =  {"+", "+", -1, 3, t_negate, "-"},
-    [t_less] =  {"<", "<", 2, 4},
-    [t_greater] =  {">", ">", 2, 4},
-    [t_lessequal] =  {"<=", "<=", 2, 4},
-    [t_greaterequal] =  {">=", ">=", 2, 4},
-    [t_equal] =  {"=", "==", 2, 5},
-    [t_notequal] =  {"\\ne ", "!=", 2, 5},
-    [t_logical_not] =  {"\\lnot ", "!", 1, 6},
-    [t_logical_and] =  {"\\land ", "&&", -1, 7},
-    [t_logical_or] =  {"\\lor ", "||", -1, 8},
+    [t_constant] = {NULL, NULL, 0, 0},
+    [t_variable] = {NULL, NULL, 0, 0},
+    [t_power] = {"^", "^", 2, 1},
+    [t_negate] =  {"-", "-", 1, 2},
+    [t_inverse] =  {NULL, "1/", 1, 3},
+    [t_multiply] =  {"\\cdot ", "*", -1, 3, t_inverse, "/"},
+    [t_add] =  {"+", "+", -1, 4, t_negate, "-"},
+    [t_less] =  {"<", "<", 2, 5},
+    [t_greater] =  {">", ">", 2, 5},
+    [t_lessequal] =  {"<=", "<=", 2, 5},
+    [t_greaterequal] =  {">=", ">=", 2, 5},
+    [t_equal] =  {"=", "==", 2, 6},
+    [t_notequal] =  {"\\ne ", "!=", 2, 6},
+    [t_logical_not] =  {"\\lnot ", "!", 1, 7},
+    [t_logical_and] =  {"\\land ", "&&", -1, 8},
+    [t_logical_or] =  {"\\lor ", "||", -1, 9},
 };
 
 #define UNGET_BUF_LEN 16
@@ -191,6 +192,15 @@ static struct expr *exp_0(struct state *st) /* const, var, () */ {
     return NULL;
 }
 
+static struct expr *exp_1_exp(struct state *st) /* ^ */ {
+    struct expr *first = exp_0(st), *node = NULL;
+
+    if (expect(st, tags[t_power].name))
+        append_child(st, &node, t_power, first, exp_1_exp(st));
+
+    return node ? node : first;
+}
+
 static struct expr *exp_1(struct state *st) /* - + (unary) */ {
     _Bool neg = 0;
     for (;;) {
@@ -198,7 +208,7 @@ static struct expr *exp_1(struct state *st) /* - + (unary) */ {
         else if (!expect(st, "+")) break;
     }
 
-    struct expr *first = exp_0(st), *node = NULL;
+    struct expr *first = exp_1_exp(st), *node = NULL;
 
     if (neg) append_child(st, &node, t_negate, first, NULL);
 
@@ -242,13 +252,13 @@ static struct expr *exp_4(struct state *st) /* > < >= <= */ {
     struct expr *first = exp_3(st), *node = NULL;
 
     if (expect(st, tags[t_lessequal].name))
-        append_child(st, &node, t_lessequal, first, exp_3(st));
+        append_child(st, &node, t_lessequal, first, exp_4(st));
     else if (expect(st, tags[t_less].name))
-        append_child(st, &node, t_less, first, exp_3(st));
+        append_child(st, &node, t_less, first, exp_4(st));
     else if (expect(st, tags[t_greaterequal].name))
-        append_child(st, &node, t_greaterequal, first, exp_3(st));
+        append_child(st, &node, t_greaterequal, first, exp_4(st));
     else if (expect(st, tags[t_greater].name))
-        append_child(st, &node, t_greater, first, exp_3(st));
+        append_child(st, &node, t_greater, first, exp_4(st));
 
     return node ? node : first;
 }
@@ -257,9 +267,9 @@ static struct expr *exp_5(struct state *st) /* == != */ {
     struct expr *first = exp_4(st), *node = NULL;
 
     if (expect(st, tags[t_equal].name))
-        append_child(st, &node, t_equal, first, exp_4(st));
+        append_child(st, &node, t_equal, first, exp_5(st));
     else if (expect(st, tags[t_notequal].name))
-        append_child(st, &node, t_notequal, first, exp_4(st));
+        append_child(st, &node, t_notequal, first, exp_5(st));
 
     return node ? node : first;
 }
