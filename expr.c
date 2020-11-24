@@ -60,10 +60,12 @@ inline static void unget(struct state *st, char ch) {
 }
 
 inline static void skip_spaces(struct state *st) {
+    long last = 0;
     for (int ch; (ch = get(st)); ) {
         // Remember new line position
-        if (ch == '\n') st->last_line = ftell(st->in) - st->unget_pos + 1;
+        if (ch == '\n') last = ftell(st->in) - st->unget_pos + 1;
         if (!isspace((unsigned)ch)) {
+            st->last_line = last;
             unget(st, ch);
             break;
         }
@@ -315,13 +317,14 @@ struct expr *parse_tree(FILE *in) {
 
     if (!st.success) {
         // Output error in human readable format
-        long res = ftell(in);
-        fseek(in, 0, SEEK_SET);
+        long res = ftell(in) - st.last_line;
+        fseek(in, st.last_line, SEEK_SET);
 
         char *str = NULL;
-        size_t size = 0;
+        size_t size = 0, count;
 
-        if (getline(&str, &size, in) >= 0) {
+        if ((count = getline(&str, &size, in)) > 0) {
+            if (str[count - 1] == '\n') str[count - 1] = 0;
             fprintf(stderr, "%s\n%*c\n%*c\n", str,
                 (int)(res + 1), '^', (int)(res + 1), '|');
         }
