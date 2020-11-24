@@ -17,7 +17,7 @@ clean:
 	rm -rf *.o $(PROG)
 	
 $(PROG): $(OBJS)
-	$(CC) $(CCFLAGS) $(OBJS) $(LDFLAGS) -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(LDLIBS) -o $@
 
 expr.o: expr.h
 main.o: expr.h
