@@ -1,0 +1,35 @@
+#!/bin/sh
+
+make
+
+format=$1
+file=$(mktemp /tmp/tmpXXXXX.$format)
+
+if ./parse -f "$1" "$2" > $file
+then
+    case $1 in
+    tex)
+		if command -v tectonic >/dev/null 2>&1;
+		then
+			tectonic --format plain $file
+		else
+			tex $file
+			dvipdfmx ${file%$format}.dvi
+		fi
+		# Use zathura if present
+		command -v zathura --version > /dev/null 2>&1 &&\
+			zathura ${file%$format}pdf ||\
+			xdg-open ${file%$format}pdf ;;
+    string)
+        cat $file ;;
+    graph)
+		dot -Tpng < $file > ${file%$format}png
+        command -v sxiv >/dev/null 2>&1 &&\
+        	sxiv ${file%$format}png ||\
+        	xdg-open ${file%$format}png ;;
+	*)
+    	exit 1 ;;
+    esac
+fi
+
+rm $file

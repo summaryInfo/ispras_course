@@ -14,6 +14,9 @@ Possible output formats are string (plain text), tex, graphviz dot format.
 
 * GNU make
 * C11 compatible compiler
+* tectonic for tex comilation (optional) or texlive (untested)
+* zathura as PDF viewer (optional)
+* sxiv as image viewer (optional)
 
 ## Example
 
@@ -33,7 +36,11 @@ Generate PNG file:
 
     ./parse -f graph "1-2+3" | dot -Tpng >| out.png
 
-Generate PDF file:
+Using wrapper:
+
+    ./display tex "(1+x)/2"
+    ./display graph "x*y*x + --2"
+    ./display string "!(123 < 1 && x / 2 >= y)"
 
 ## Notes
 
