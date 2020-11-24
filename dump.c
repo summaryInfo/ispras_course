@@ -67,7 +67,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
                 struct expr *ch = *it++;
                 if (ch->tag != t_inverse) {
                     if (nput) fputs(info->tex_name, out);
-                    dump_tree_tex(out, ch, info->prio);
+                    dump_tree_tex(out, ch, MAX_PRIO);
                     nput++;
                 }
             }
@@ -82,7 +82,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
                 struct expr *ch = *it++;
                 if (ch->tag == t_inverse) {
                     if (nput) fputs(info->tex_name, out);
-                    dump_tree_tex(out, ch->children[0], info->prio);
+                    dump_tree_tex(out, ch->children[0], MAX_PRIO);
                     nput++;
                 }
             }
