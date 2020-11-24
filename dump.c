@@ -113,7 +113,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
             } else fputs(info->tex_name, out);
 
             fputc('{', out);
-            dump_tree_tex(out, ch, info->prio);
+            dump_tree_tex(out, ch, expr->tag == t_power ? MAX_PRIO : info->prio);
             fputc('}', out);
         }
 
