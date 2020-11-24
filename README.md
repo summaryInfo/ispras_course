@@ -3,6 +3,11 @@ A Parser Implementataion
 
 ## Description
 
+![alt text](https://github.com/summaryInfo/ispras_course/raw/parser/data/1.png "Generated TeX")
+
+![alt text](https://github.com/summaryInfo/ispras_course/raw/parser/data/2.png "Generated graph image")
+
+
 This is a math experesion parser.
 Possible output formats are string (plain text), tex, graphviz dot format.
 
