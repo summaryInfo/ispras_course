@@ -28,6 +28,7 @@ _Noreturn void usage(const char *argv0) {
 }
 
 const char *make_input(const char *input, const char *arg, size_t *size) {
+    // Use mmaped file if filename is provides or else just return arg
     if (!input) return arg;
 
     char *addr = NULL;
@@ -72,7 +73,7 @@ int main(int argc, char **argv) {
 
     if (!input && (argc <= optind || !argv[optind])) usage(argv[0]);
 
-    size_t size;
+    size_t size = 0;
     const char *in = make_input(input, argv[optind], &size);
     if (!in) return ERC_NO_IN_FILE;
 
