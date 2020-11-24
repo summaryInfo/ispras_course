@@ -51,7 +51,6 @@ inline static char get(struct state *st) {
 
 inline static void unget(struct state *st, char ch) {
     if (ch && ungetc(ch, st->in) == EOF) {
-        fprintf(stderr, "!!\n");
         if (st->unget_pos + 1 >= UNGET_BUF_LEN) {
             fprintf(stderr, "Unget buffer exhaused\n");
             abort();
