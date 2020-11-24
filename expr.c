@@ -46,7 +46,7 @@ struct tag_info tags[] = {
     [t_logical_or] =  {"\\lor ", "||", -1, 9},
 };
 
-#define LIT_CAP_STEP(x) ((x) ? 4*(x)*3 : 16)
+#define LIT_CAP_STEP(x) ((x) ? 4*(x)/3 : 16)
 #define UNGET_BUF_LEN 16
 
 struct state {
