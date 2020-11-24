@@ -14,15 +14,15 @@
  * E9 := E9 "||" E8 | E8
  * E8 := E8 "&&" E7 | E7
  * E7 := E6 |  "!" E7
- * E6 := E5 == E6 | E5 != E6 | E5
- * E5 := E4 > E5 | E4 < E5 | E4 <= E4 | E4 >= E5 | E4
- * E4 := E4 + E3 | E4 - E3 | E3
- * E3 := E3 * E2 | E3 / E2 | E2
- * E2 := E1 ^ E2 | E1
- * E1 := + E1 | - E1 | E0
+ * E6 := E5 "==" E6 | E5 "!=" E6 | E5
+ * E5 := E4 ">" E5 | E4 "<" E5 | E4 "<=" E4 | E4 ">=" E5 | E4
+ * E4 := E4 "+" E3 | E4 "-" E3 | E3
+ * E3 := E3 "*" E2 | E3 "/" E2 | E2
+ * E2 := E1 "^" E2 | E1
+ * E1 := "+" E1 | "-" E1 | E0
  * E0 := VAR | NUM | "(" E9 ")"
  * NUM := <c double constant>
- * LETTER = a | ... | z | A | ... | Z
+ * LETTER = "a" | ... | "z" | "A" | ... | "Z"
  * VAR := LETTER VAR | LETTER
  *
  */
