@@ -14,7 +14,7 @@ then
 			tectonic --format plain $file
 		else
 			tex $file
-			dvipdfmx ${file%$format}.dvi
+			dvipdfmx ${file%$format}dvi
 		fi
 		# Use zathura if present
 		command -v zathura --version > /dev/null 2>&1 &&\
