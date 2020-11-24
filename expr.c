@@ -8,63 +8,87 @@
 #include <string.h>
 
 struct tag_info tags[] = {
-	[t_constant] =  {NULL, NULL, 0, 0},
-	[t_variable] =  {NULL, NULL, 0, 0},
-	[t_negate] =  {"-", "-", 1, 1},
-	[t_inverse] =  {NULL, "1/", 1, 2},
-	[t_multiply] =  {"\\cdot ", "*", -1, 2, t_inverse, "/"},
-	[t_add] =  {"+", "+", -1, 3, t_negate, "-"},
-	[t_less] =  {"<", "<", 2, 4},
-	[t_greater] =  {">", ">", 2, 4},
-	[t_lessequal] =  {"<=", "<=", 2, 4},
-	[t_greaterequal] =  {">=", ">=", 2, 4},
-	[t_equal] =  {"=", "==", 2, 5},
-	[t_notequal] =  {"\\ne ", "!=", 2, 5},
-	[t_logical_not] =  {"\\lnot ", "!", 1, 6},
-	[t_logical_and] =  {"\\land ", "&&", -1, 7},
-	[t_logical_or] =  {"\\lor ", "||", -1, 8},
+    [t_constant] =  {NULL, NULL, 0, 0},
+    [t_variable] =  {NULL, NULL, 0, 0},
+    [t_negate] =  {"-", "-", 1, 1},
+    [t_inverse] =  {NULL, "1/", 1, 2},
+    [t_multiply] =  {"\\cdot ", "*", -1, 2, t_inverse, "/"},
+    [t_add] =  {"+", "+", -1, 3, t_negate, "-"},
+    [t_less] =  {"<", "<", 2, 4},
+    [t_greater] =  {">", ">", 2, 4},
+    [t_lessequal] =  {"<=", "<=", 2, 4},
+    [t_greaterequal] =  {">=", ">=", 2, 4},
+    [t_equal] =  {"=", "==", 2, 5},
+    [t_notequal] =  {"\\ne ", "!=", 2, 5},
+    [t_logical_not] =  {"\\lnot ", "!", 1, 6},
+    [t_logical_and] =  {"\\land ", "&&", -1, 7},
+    [t_logical_or] =  {"\\lor ", "||", -1, 8},
 };
+
+#define UNGET_BUF_LEN 16
 
 struct state {
     FILE *in;
     _Bool success;
     const char *expected;
+    // Portable way to unget more than one
+    // character (this is actually unnecesery in linux)
+    size_t unget_pos;
+    char unget_buf[UNGET_BUF_LEN];
+
+    // Last line start
+    long last_line;
 };
 
+inline static char get(struct state *st) {
+    if (st->unget_pos) {
+        return st->unget_buf[--st->unget_pos];
+    } else {
+        int ch = fgetc(st->in);
+        return ch == EOF ? 0 : ch;
+    }
+}
+
+inline static void unget(struct state *st, char ch) {
+    if (ch && ungetc(ch, st->in) == EOF) {
+        fprintf(stderr, "!!\n");
+        if (st->unget_pos + 1 >= UNGET_BUF_LEN) {
+            fprintf(stderr, "Unget buffer exhaused\n");
+            abort();
+        }
+        st->unget_buf[st->unget_pos++] = ch;
+    }
+}
+
 inline static void skip_spaces(struct state *st) {
-    for (int c; (c = fgetc(st->in)) != EOF; ) {
-        if (!isspace((unsigned)c)) {
-            ungetc(c, st->in);
+    for (int ch; (ch = get(st)); ) {
+        // Remember new line position
+        if (ch == '\n') st->last_line = ftell(st->in) - st->unget_pos + 1;
+        if (!isspace((unsigned)ch)) {
+            unget(st, ch);
             break;
         }
     }
 }
 
 inline static char peek_nospace(struct state *st) {
-    int c = fgetc(st->in);
-    if (c == EOF) return 0;
-    ungetc(c, st->in);
-    return c;
+    char ch = get(st);
+    unget(st, ch);
+    return ch;
 }
 
-inline static char peek(struct state *st) {
+inline static char peek_space(struct state *st) {
     skip_spaces(st);
     return peek_nospace(st);
 }
 
 inline static double expect_number(struct state *st) {
     double value = 0;
-    if (fscanf(st->in, "%lg", &value) != 1) {
+    if (st->unget_pos || fscanf(st->in, "%lg", &value) != 1) {
         st->expected = "<number>";
         st->success = 0;
     }
     return value;
-}
-
-inline static char next(struct state *st) {
-    // does not skip spaces
-    int c = fgetc(st->in);
-    return c == EOF ? 0 : c;
 }
 
 inline static _Bool expect(struct state *st, const char *str) {
@@ -72,15 +96,21 @@ inline static _Bool expect(struct state *st, const char *str) {
 
     skip_spaces(st);
 
-    for (int c; *str && (c = fgetc(st->in)) != EOF; str++) {
-        if (c != *str) {
-            ungetc(c, st->in);
-            st->expected = str;
-            return 0;
+    const char *str0 = str;
+    for (int ch; *str && (ch = get(st)); str++) {
+        if (ch != *str) {
+            unget(st, ch);
+            break;
         }
     }
 
-    return !*str;
+    if (*str) {
+        st->expected = str;
+        while (--str >= str0) unget(st, *str);
+        return 0;
+    }
+
+    return 1;
 }
 
 inline static _Bool append_child(struct state *st, struct expr **node, enum tag tag, struct expr *first, struct expr *new) {
@@ -88,6 +118,7 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
     struct expr *tmp = realloc(*node, sizeof(*tmp) + (!!new + nch)*sizeof(tmp));
     if (!tmp) {
         free_tree(new);
+        st->expected = NULL;
         st->success = 0;
         return 0;
     }
@@ -116,18 +147,18 @@ static struct expr *exp_0(struct state *st) /* const, var, () */ {
         struct expr *node = exp_8(st);
         st->success &= expect(st, ")");
         return node;
-    } else if (isdigit((unsigned)peek(st))) {
-        // TODO Lets ignore base 2, 8 and 16 numbers for now...
+    } else if (isdigit((unsigned)peek_space(st))) {
         struct expr *tmp = malloc(sizeof(*tmp));
         if (!tmp) {
             st->success = 0;
+            st->expected = NULL;
             return NULL;
         }
 
         tmp->tag = t_constant;
         tmp->value = expect_number(st);
         return tmp;
-    } else if (isalpha((unsigned)peek(st))) {
+    } else if (isalpha((unsigned)peek_nospace(st))) {
         size_t cap = 0, size = 0;
         char *str = NULL;
         for (char ch; (ch = peek_nospace(st)) && isalpha((unsigned)ch);) {
@@ -135,17 +166,19 @@ static struct expr *exp_0(struct state *st) /* const, var, () */ {
                 char *tmp = realloc(str, cap = LIT_CAP_STEP(cap));
                 if (!tmp) {
                     st->success = 0;
+                    st->expected = NULL;
                     break;
                 }
                 str = tmp;
             }
-            str[size++] = next(st);
+            str[size++] = get(st);
         }
         str[size] = 0;
 
         struct expr *tmp = malloc(sizeof(*tmp));
         if (!tmp) {
             st->success = 0;
+            st->expected = NULL;
             return NULL;
         }
         tmp->tag = t_variable;
@@ -153,7 +186,7 @@ static struct expr *exp_0(struct state *st) /* const, var, () */ {
         return tmp;
     }
     st->success = 0;
-    st->expected = "<number> or <variable>";
+    st->expected = "<number>' or '<variable>";
     return NULL;
 }
 
@@ -167,7 +200,7 @@ static struct expr *exp_1(struct state *st) /* - + (unary) */ {
     struct expr *first = exp_0(st), *node = NULL;
 
     if (neg) append_child(st, &node, t_negate, first, NULL);
-    
+
     return node ? node : first;
 }
 
@@ -207,14 +240,14 @@ static struct expr *exp_3(struct state *st) /* + - */ {
 static struct expr *exp_4(struct state *st) /* > < >= <= */ {
     struct expr *first = exp_3(st), *node = NULL;
 
-    if (expect(st, tags[t_less].name))
-        append_child(st, &node, t_less, first, exp_3(st));
-    else if (expect(st, tags[t_lessequal].name))
+    if (expect(st, tags[t_lessequal].name))
         append_child(st, &node, t_lessequal, first, exp_3(st));
-    else if (expect(st, tags[t_greater].name))
-        append_child(st, &node, t_greater, first, exp_3(st));
+    else if (expect(st, tags[t_less].name))
+        append_child(st, &node, t_less, first, exp_3(st));
     else if (expect(st, tags[t_greaterequal].name))
         append_child(st, &node, t_greaterequal, first, exp_3(st));
+    else if (expect(st, tags[t_greater].name))
+        append_child(st, &node, t_greater, first, exp_3(st));
 
     return node ? node : first;
 }
@@ -239,7 +272,7 @@ static struct expr *exp_6(struct state *st) /* ! */ {
     // TODO Optimize equality and comparisons here
 
     if (neg) append_child(st, &node, t_logical_not, first, NULL);
-    
+
     return node ? node : first;
 }
 
@@ -278,9 +311,11 @@ struct expr *parse_tree(FILE *in) {
 
     struct expr *tree = exp_8(&st);
 
-    st.success &= !peek(&st);
+    st.success &= !peek_space(&st);
+
 
     if (!st.success) {
+        // Output error in human readable format
         long res = ftell(in);
         fseek(in, 0, SEEK_SET);
 
