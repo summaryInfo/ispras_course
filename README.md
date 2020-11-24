@@ -41,6 +41,7 @@ Using wrapper:
     ./display tex "(1+x)/2"
     ./display graph "x*y*x + --2"
     ./display string "!(123 < 1 && x / 2 >= y)"
+    ./display tex "0+1+2/3^5^3 > x^(1/2)
 
 ## Notes
 
