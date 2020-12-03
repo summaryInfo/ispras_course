@@ -688,7 +688,7 @@ static struct expr *push_ops(struct expr *exp) {
 }
 
 
-#define MAX_OPT 2
+#define MAX_OPT 5
 
 struct expr *optimize_tree(struct expr *exp) {
     for (size_t i = 0; i < MAX_OPT; i++) {
