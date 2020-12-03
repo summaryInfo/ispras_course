@@ -229,6 +229,17 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
 
 }
 
+inline static bool remove_child(struct expr *exp, struct expr *rem, double c) {
+    for (size_t i = 0; i < exp->n_child; i++) {
+        if (!cmp_tree_rec(exp->children[i], rem)) {
+            free_tree(exp->children[i]);
+            exp->children[i] = const_node(c);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 struct expr *eliminate_common(struct expr *exp) {
     if (has_childern(exp)) {
         // Recursively handle children first
@@ -243,13 +254,40 @@ struct expr *eliminate_common(struct expr *exp) {
     case t_add: {
         for (size_t i = 0; i < exp->n_child; i++) {
             for (size_t j = 0; j < exp->n_child; j++) {
+                if (i == j) continue;
                 if (exp->children[j]->tag == t_negate &&
                     !cmp_tree_rec(exp->children[j]->children[0], exp->children[i])) {
                     free_tree(exp->children[i]);
                     free_tree(exp->children[j]);
                     exp->children[i] = const_node(0);
                     exp->children[j] = const_node(0);
+                } else if (!cmp_tree_rec(exp->children[i],exp->children[j])) {
+                    free_tree(exp->children[j]);
+                    exp->children[j] = const_node(0);
+                    exp->children[i] = node(t_multiply, 2, const_node(2), exp->children[i]);
+                } else if (exp->children[i]->tag == t_multiply &&
+                           exp->children[j]->tag == t_multiply) {
+                    struct expr *tmp = node_of_size(t_multiply, exp->children[i]->n_child + 1);
+                    tmp->n_child = 0;
+                    for (size_t k = 0; k < exp->children[i]->n_child; k++) {
+                        if (remove_child(exp->children[j], exp->children[i]->children[k], 1)) {
+                            tmp->children[tmp->n_child++] = exp->children[i]->children[k];
+                            exp->children[i]->children[k] = const_node(1);
+                        }
+                    }
+                    if (tmp->n_child) {
+                        tmp->children[tmp->n_child++]  = node(t_add, 2, exp->children[i], exp->children[j]);
+                        exp->children[i] = tmp;
+                        exp->children[j] = const_node(0);
+                    } else free(tmp);
+                } else if (exp->children[i]->tag == t_multiply) {
+                    if (remove_child(exp->children[i], exp->children[j], 1)) {
+                        exp->children[i] = node(t_multiply, 2, exp->children[j],
+                                                node(t_add, 2, const_node(1), exp->children[i]));
+                        exp->children[j] = const_node(0);
+                    }
                 }
+                sort_tree(exp);
             }
         }
         sort_tree(exp);
@@ -258,16 +296,33 @@ struct expr *eliminate_common(struct expr *exp) {
     case t_multiply: {
         for (size_t i = 0; i < exp->n_child; i++) {
             for (size_t j = 0; j < exp->n_child; j++) {
-                if (i != j && exp->children[j]->tag == t_inverse &&
+                if (i == j) continue;
+                if (exp->children[j]->tag == t_inverse &&
                     !cmp_tree_rec(exp->children[j]->children[0], exp->children[i])) {
                     free_tree(exp->children[i]);
                     free_tree(exp->children[j]);
                     exp->children[i] = const_node(1);
                     exp->children[j] = const_node(1);
+                } else if (!cmp_tree_rec(exp->children[i], exp->children[j])) {
+                    exp->children[i] = node(t_power, 2, exp->children[i], const_node(2));
+                    free_tree(exp->children[j]);
+                    exp->children[j] = const_node(1);
+                } else if (exp->children[i]->tag == t_power && exp->children[j]->tag == t_power &&
+                           !cmp_tree_rec(exp->children[i]->children[0], exp->children[j]->children[0])) {
+                    exp->children[i] = node(t_power, 2, exp->children[i]->children[0],
+                                            node(t_add, 2, exp->children[i]->children[1], exp->children[j]->children[1]));
+                    free_tree(exp->children[j]->children[0]);
+                    free(exp->children[j]);
+                    exp->children[j] = const_node(1);
+                } else if (exp->children[i]->tag == t_power &&
+                           !cmp_tree_rec(exp->children[i]->children[0], exp->children[j])) {
+                    exp->children[i]->children[1] = node(t_add, 2, exp->children[i]->children[1], const_node(1));
+                    free_tree(exp->children[j]);
+                    exp->children[j] = const_node(1);
                 }
+                sort_tree(exp);
             }
         }
-        sort_tree(exp);
         break;
     }
     case t_less:
