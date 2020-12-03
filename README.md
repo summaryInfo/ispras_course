@@ -14,6 +14,10 @@ Possible output formats are string (plain text), tex, graphviz dot format.
 * `-f` specify output format. One of `tex`, `string`, `graph` (default is `string`)
 * `-o` output file (default is stdout)
 * `-i` input file (default is command list argument)
+* `-D` trace output file (default is output file)
+* `-F` trace format
+* `-O` optimize
+* `-d` take derivative
 
 ## Dependencies
 
@@ -35,6 +39,7 @@ Examples:
     ./parse -f graph -o out.dot "x*y*x + --2"
     ./parse  -o out.txt "!(123 < 1 && x / 2 >= y)"
     ./parse "x + 2 < 4*x || x == 2"
+    ./parse -Odx "x^x+x*(x+y)"
     echo "1+2/3" > file.txt && ./parse -i file.txt
 
 Generate PNG file:
