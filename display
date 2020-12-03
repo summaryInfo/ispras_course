@@ -4,10 +4,25 @@ make -sj
 
 format=$1
 file=$(mktemp /tmp/tmpXXXXX.$format)
+flags=
 
-if ./parse -f "$1" "$2" > $file
+if [ "${format#derivate-*-}" != "$format" ];
 then
-    case $1 in
+    format=${format#derivate-}
+    flags="$flags -d${format%%-*}"
+    format=${format#*-}
+fi
+
+
+if [ "${format#optimize-}" != "$format" ];
+then
+    format=${format#optimize-}
+    flags="$flags -O"
+fi
+
+if ./parse $flags -f "$format" "$2" > $file
+then
+    case $format in
     tex)
 		if command -v tectonic >/dev/null 2>&1;
 		then
