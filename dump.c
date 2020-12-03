@@ -110,7 +110,11 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
                 assert(ch->n_child == (size_t)tags[ch->tag].arity);
                 ch = ch->children[0];
                 fputs(info->alt, out);
-            } else fputs(info->tex_name, out);
+            } else if (tag != t_add ||
+                       ch->tag != t_constant ||
+                       ch->value >= 0) {
+                fputs(info->tex_name, out);
+            }
 
             fputc('{', out);
             dump_tree_tex(out, ch, expr->tag == t_power ? MAX_PRIO : info->prio);
@@ -142,17 +146,22 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
         assert(info->name);
 
         struct expr **it = expr->children;
-        if (expr->n_child == 1) fputs(info->name, out);
+        if (expr->n_child == 1 && info->arity == 1) fputs(info->name, out);
         dump_tree_string(out, *it++, info->prio);
 
         while (it < &expr->children[expr->n_child]) {
             struct expr *ch = *it++;
+            assert(ch);
 
             if (info->alt_tag == ch->tag) {
                 assert(ch->n_child == (size_t)tags[ch->tag].arity);
                 ch = ch->children[0];
                 fputs(info->alt, out);
-            } else fputs(info->name, out);
+            } else if (tag != t_add ||
+                       ch->tag != t_constant ||
+                       ch->value >= 0) {
+                fputs(info->name, out);
+            }
 
             dump_tree_string(out, ch, info->prio);
         }
