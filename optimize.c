@@ -74,7 +74,7 @@ inline static struct expr *var_node(const char *var) {
 
 }
 
-struct expr *deep_copy(struct expr *exp) {
+inline static struct expr *deep_copy(struct expr *exp) {
     struct expr *res;
     switch (exp->tag) {
     case t_constant:
@@ -104,7 +104,8 @@ static int cmp_tree_rec(const struct expr *aexp, const struct expr *bexp) {
         if (aexp->n_child != bexp->n_child)
             return (ssize_t)aexp->n_child - bexp->n_child;
         for (size_t i = 0; i < aexp->n_child; i++) {
-            int res = cmp_tree_rec(aexp->children[i], bexp->children[i]);
+            int res = cmp_tree_rec(aexp->children[i],
+                                   bexp->children[i]);
             if (res) return res;
         }
         return 0;
@@ -124,7 +125,8 @@ static void sort_tree(struct expr *exp) {
         switch(exp->tag) {
         case t_less: case t_lessequal:
         case t_greater: case t_greaterequal:
-            if (cmp_tree_rec(exp->children[0], exp->children[1]) < 0) {
+            if (cmp_tree_rec(exp->children[0],
+                             exp->children[1]) < 0) {
                 struct expr *tmp = exp->children[0];
                 exp->children[0] = exp->children[1];
                 exp->children[1] = tmp;
@@ -156,8 +158,10 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
         res = const_node(0);
         break;
     case t_log: {
-        res = node(t_inverse, 1, deep_copy(exp->children[0]));
-        res = node(t_multiply, 2, derivate_tree(exp->children[0], var, optimize), res);
+        res = node(t_multiply, 2,
+                   derivate_tree(exp->children[0], var, optimize),
+                   node(t_inverse, 1,
+                        deep_copy(exp->children[0])));
         free(exp);
         break;
     }
@@ -169,19 +173,26 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
     case t_power:
         // For power first handle special cases
         if (is_const(exp->children[0])) {
-            res = node(t_multiply, 2, exp, const_node(log(exp->children[0]->value)));
+            res = node(t_multiply, 2,
+                       exp,
+                       const_node(log(exp->children[0]->value)));
         } else if (is_const(exp->children[1])) {
             res = const_node(exp->children[1]->value);
             exp->children[1]->value -= 1;
             res = node(t_multiply, 2, res, exp);
         } else {
-            struct expr *res1, *res2;
             // Oof... thats complex
-            res1 = node(t_multiply, 2, node(t_log, 1, deep_copy(exp->children[0])),
-                        derivate_tree(deep_copy(exp->children[1]), var, optimize));
-            res2 = node(t_multiply, 2, deep_copy(exp->children[1]),
-                        derivate_tree(node(t_log, 1, deep_copy(exp->children[0])), var, optimize));
-            res = node(t_multiply, 2, exp, node(t_add, 2, res1, res2));
+            res = node(t_multiply, 2,
+                       exp,
+                       node(t_add, 2,
+                            node(t_multiply, 2,
+                                 node(t_log, 1,
+                                      deep_copy(exp->children[0])),
+                                 derivate_tree(deep_copy(exp->children[1]), var, optimize)),
+                            node(t_multiply, 2,
+                                 deep_copy(exp->children[1]),
+                                 derivate_tree(node(t_log, 1,
+                                                    deep_copy(exp->children[0])), var, optimize))));
         }
         break;
     case t_multiply: {
@@ -197,8 +208,13 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
         break;
     }
     case t_inverse: {
-        res = node(t_inverse, 1, node (t_negate, 1, node(t_power, 2, deep_copy(exp->children[0]), const_node(2))));
-        res = node(t_multiply, 2, derivate_tree(exp->children[0], var, optimize), res);
+        res = node(t_multiply, 2,
+                   derivate_tree(exp->children[0], var, optimize),
+                   node(t_inverse, 1,
+                        node (t_negate, 1,
+                              node(t_power, 2,
+                                   deep_copy(exp->children[0]),
+                                   const_node(2)))));
         free(exp);
         break;
     }
@@ -407,7 +423,8 @@ static struct expr *fold_constants(struct expr *exp) {
             free_tree(exp);
             res = const_node(1);
         } else if (is_eq_const(exp->children[1], -1)) {
-            res = node(t_multiply, 1, node(t_inverse, 1, exp->children[0]));
+            res = node(t_multiply, 1,
+                       node(t_inverse, 1, exp->children[0]));
             free_tree(exp->children[1]);
             free(exp);
         }
@@ -547,10 +564,12 @@ static struct expr *fold_ops(struct expr *exp);
 inline static void push_neg_mul(struct expr *exp) {
     if (exp->children[0]->tag == t_inverse) {
         exp->children[0]->children[0] =
-            fold_ops(node(t_negate, 1, exp->children[0]->children[0]));
+            fold_ops(node(t_negate, 1,
+                          exp->children[0]->children[0]));
     } else {
         exp->children[0] =
-            fold_ops(node(t_negate, 1, exp->children[0]));
+            fold_ops(node(t_negate, 1,
+                          exp->children[0]));
     }
 }
 
