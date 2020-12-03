@@ -251,6 +251,15 @@ struct expr *eliminate_common(struct expr *exp) {
     enum tag tag = exp->tag;
 
     switch(tag) {
+    case t_power: {
+        if (exp->children[0]->tag == t_power) {
+            struct expr *tmp = exp->children[0];
+            exp->children[1] = node(t_multiply, 2, exp->children[1], tmp->children[1]);
+            exp->children[0] = tmp->children[0];
+            free(tmp);
+        }
+        break;
+    }
     case t_add: {
         for (size_t i = 0; i < exp->n_child; i++) {
             for (size_t j = 0; j < exp->n_child; j++) {
@@ -688,7 +697,7 @@ static struct expr *push_ops(struct expr *exp) {
 }
 
 
-#define MAX_OPT 5
+#define MAX_OPT 10
 
 struct expr *optimize_tree(struct expr *exp) {
     for (size_t i = 0; i < MAX_OPT; i++) {

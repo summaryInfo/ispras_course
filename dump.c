@@ -140,7 +140,8 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
         fputs(expr->id, out);
     } else {
 
-        if (outer_prio < info->prio) fputc('(', out);
+        if (outer_prio < info->prio ||
+            (outer_prio == info->prio && tag == t_power)) fputc('(', out);
 
         assert((info->arity < 0 && expr->n_child > 0) || (size_t)info->arity == expr->n_child);
         assert(info->name);
@@ -166,7 +167,8 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
             dump_tree_string(out, ch, info->prio);
         }
 
-        if (outer_prio < info->prio) fputc(')', out);
+        if (outer_prio < info->prio ||
+            (outer_prio == info->prio && tag == t_power)) fputc(')', out);
     }
 }
 
