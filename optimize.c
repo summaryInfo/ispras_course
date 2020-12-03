@@ -91,6 +91,59 @@ struct expr *deep_copy(struct expr *exp) {
     return res;
 }
 
+static int cmp_tree_rec(const struct expr *aexp, const struct expr *bexp) {
+    if (aexp->tag != bexp->tag) return aexp->tag - bexp->tag;
+    else switch(aexp->tag) {
+    case t_constant:
+        if (is_zero(aexp->value - bexp->value)) return 0;
+        return aexp->value < bexp->value ? -1 :
+               aexp->value > bexp->value;
+    case t_variable:
+        return strcmp(aexp->id, bexp->id);
+    default:
+        if (aexp->n_child != bexp->n_child)
+            return (ssize_t)aexp->n_child - bexp->n_child;
+        for (size_t i = 0; i < aexp->n_child; i++) {
+            int res = cmp_tree_rec(aexp->children[i], bexp->children[i]);
+            if (res) return res;
+        }
+        return 0;
+    }
+}
+
+static int cmp_tree(const void *a, const void *b) {
+    const struct expr *aexp = *(const struct expr **)a;
+    const struct expr *bexp = *(const struct expr **)b;
+    return cmp_tree_rec(aexp, bexp);
+}
+
+static void sort_tree(struct expr *exp) {
+    if (has_childern(exp)) {
+        for (size_t i = 0; i < exp->n_child; i++)
+            sort_tree(exp->children[i]);
+        switch(exp->tag) {
+        case t_less: case t_lessequal:
+        case t_greater: case t_greaterequal:
+            if (cmp_tree_rec(exp->children[0], exp->children[1]) < 0) {
+                struct expr *tmp = exp->children[0];
+                exp->children[0] = exp->children[1];
+                exp->children[1] = tmp;
+                exp->tag = (enum tag[]){
+                    [t_less] = t_greater,
+                    [t_lessequal] = t_greaterequal,
+                    [t_greater] = t_less,
+                    [t_greaterequal] = t_lessequal,
+                }[exp->tag];
+            }
+            //fallthrough
+        case t_power:
+            break;
+        default:
+            qsort(exp->children, exp->n_child, sizeof(exp), cmp_tree);
+        }
+    }
+}
+
 struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
     static bool nested = 0;
     bool cnested = nested;
@@ -191,14 +244,45 @@ struct expr *eliminate_common(struct expr *exp) {
     enum tag tag = exp->tag;
 
     switch(tag) {
+    case t_add: {
+        for (size_t i = 0; i < exp->n_child; i++) {
+            for (size_t j = 0; j < exp->n_child; j++) {
+                if (exp->children[j]->tag == t_negate &&
+                    !cmp_tree_rec(exp->children[j]->children[0], exp->children[i])) {
+                    free_tree(exp->children[i]);
+                    free_tree(exp->children[j]);
+                    exp->children[i] = const_node(0);
+                    exp->children[j] = const_node(0);
+                }
+            }
+        }
+        sort_tree(exp);
+        break;
+    }
+    case t_multiply: {
+        for (size_t i = 0; i < exp->n_child; i++) {
+            for (size_t j = 0; j < exp->n_child; j++) {
+                if (i != j && exp->children[j]->tag == t_inverse &&
+                    !cmp_tree_rec(exp->children[j]->children[0], exp->children[i])) {
+                    free_tree(exp->children[i]);
+                    free_tree(exp->children[j]);
+                    exp->children[i] = const_node(1);
+                    exp->children[j] = const_node(1);
+                }
+            }
+        }
+        sort_tree(exp);
+        break;
+    }
     case t_less:
     case t_greater:
     case t_lessequal:
     case t_greaterequal:
     case t_equal:
-    case t_notequal:
-        // TODO This needs tree_eq(e1, e2)
-        //fallthrough
+    case t_notequal: {
+        // TODO
+    }
+    //fallthrough
     default:
         break;
     }
@@ -364,8 +448,8 @@ static struct expr *fold_constants(struct expr *exp) {
                 exp->children[newn++] = exp->children[i];
             }
         }
+        res->n_child = newn;
         if (res_short) {
-            res->n_child = newn;
             free_tree(exp);
             res = const_node(tag != t_logical_and);
         } else if (newn == 1) {
@@ -374,7 +458,6 @@ static struct expr *fold_constants(struct expr *exp) {
         } else {
             res = realloc(exp, sizeof(*exp) + newn*sizeof(exp));
             assert(res);
-            res->n_child = newn;
         }
         break;
     }
@@ -416,18 +499,9 @@ static struct expr *fold_ops(struct expr *exp) {
     }
 
     struct expr *res = exp;
-    enum tag ctag, tag = exp->tag;
+    enum tag tag = exp->tag;
 
     switch (tag) {
-    case t_inverse:
-        assert(exp->n_child == 1);
-        if (exp->children[0]->tag == t_negate &&
-                exp->children[0]->children[0]->tag == t_multiply) {
-            res = exp->children[0];
-            push_node(res->children[0], t_inverse);
-            free(exp);
-        }
-        break;
     case t_multiply: {
         // Factor out negations
         bool negate = 0;
@@ -470,6 +544,44 @@ static struct expr *fold_ops(struct expr *exp) {
         free(exp);
         break;
     }
+    default: break;
+    }
+
+    return res;
+}
+
+static struct expr *push_ops(struct expr *exp) {
+    if (exp->tag != t_constant && exp->tag != t_variable) {
+        // Recursively fold children first
+        for (size_t i = 0; i < exp->n_child; i++)
+            exp->children[i] = push_ops(exp->children[i]);
+    }
+
+    struct expr *res = exp;
+    enum tag ctag, tag = exp->tag;
+
+    switch (tag) {
+    case t_add:
+        if (!exp->n_child) {
+            free(exp);
+            res = const_node(0);
+        }
+        break;
+    case t_multiply:
+        if (!exp->n_child) {
+            free(exp);
+            res = const_node(1);
+        }
+        break;
+    case t_inverse:
+        assert(exp->n_child == 1);
+        if (exp->children[0]->tag == t_negate &&
+                exp->children[0]->children[0]->tag == t_multiply) {
+            res = exp->children[0];
+            push_node(res->children[0], t_inverse);
+            free(exp);
+        }
+        break;
     case t_negate:
         assert(exp->n_child == 1);
         switch(ctag = exp->children[0]->tag) {
@@ -514,17 +626,16 @@ static struct expr *fold_ops(struct expr *exp) {
                 push_node(res, t_logical_not);
             }
             //fallthrough
-        default:
-            break;
+        default: break;
         }
         break;
     }
-    default:
-        break;
+    default: break;
     }
 
     return res;
 }
+
 
 #define MAX_OPT 2
 
@@ -549,8 +660,10 @@ struct expr *optimize_tree(struct expr *exp) {
             dump_tree(tfile, tfmt, exp, 0);
             fputs("Becomes\n", tfile);
         }
+        sort_tree(exp);
         exp = eliminate_common(exp);
         if (tfile) dump_tree(tfile, tfmt, exp, 0);
+        exp = push_ops(exp);
     }
     return exp;
 }
