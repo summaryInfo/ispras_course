@@ -175,17 +175,13 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
             exp->children[1]->value -= 1;
             res = node(t_multiply, 2, res, exp);
         } else {
-            struct expr *res1, *res2, *res3;
+            struct expr *res1, *res2;
             // Oof... thats complex
-            res1 = node(t_multiply, 3, deep_copy(exp),
-                        derivate_tree(deep_copy(exp->children[1]), var, optimize),
-                        node(t_log, 1, derivate_tree(deep_copy(exp->children[0]), var, optimize)));
-            res2 = node(t_power, 2, deep_copy(exp->children[0]),
-                        node(t_add, 2, deep_copy(exp->children[1]), const_node(-1)));
-            res3 = node(t_multiply, 3, exp->children[1], res2,
-                        derivate_tree(exp->children[0], var, optimize));
-            res = node(t_add, 2, res1, res3);
-            free(exp);
+            res1 = node(t_multiply, 2, node(t_log, 1, deep_copy(exp->children[0])),
+                        derivate_tree(deep_copy(exp->children[1]), var, optimize));
+            res2 = node(t_multiply, 2, deep_copy(exp->children[1]),
+                        derivate_tree(node(t_log, 1, deep_copy(exp->children[0])), var, optimize));
+            res = node(t_multiply, 2, exp, node(t_add, 2, res1, res2));
         }
         break;
     case t_multiply: {
