@@ -286,7 +286,8 @@ struct expr *eliminate_common(struct expr *exp) {
                     }
                     if (tmp->n_child) {
                         tmp->children[tmp->n_child++]  = node(t_add, 2, exp->children[i], exp->children[j]);
-                        exp->children[i] = tmp;
+                        exp->children[i] = realloc(tmp, sizeof(*tmp) + tmp->n_child*sizeof(tmp));
+                        assert(exp->children[i]);
                         exp->children[j] = const_node(0);
                     } else free(tmp);
                 } else if (exp->children[i]->tag == t_multiply) {
