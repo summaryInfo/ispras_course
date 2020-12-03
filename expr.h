@@ -1,5 +1,8 @@
-#include "stdio.h"
+#ifndef EXPR_H_
+#define EXPR_H_ 1
 
+#include <stdio.h>
+#include <stdbool.h>
 
 /**
  * AST node type
@@ -14,6 +17,7 @@ enum tag {
     t_constant = 1,
     t_variable,
     t_power,
+    t_log,
     t_negate,
     t_inverse,
     t_add,
@@ -79,8 +83,9 @@ enum format {
  * @param[out] out output file stream
  * @param[in] fmt output format
  * @param[in] expr expression AST to dump
+ * @param[in] full output should be a separate file
  */
-void dump_tree(FILE *out, enum format fmt, struct expr *expr);
+void dump_tree(FILE *out, enum format fmt, struct expr *expr, bool full);
 
 /**
  * Build AST from string
@@ -96,3 +101,35 @@ struct expr *parse_tree(const char *in);
  * @praram[in] AST to free
  */
 void free_tree(struct expr *expr);
+
+/**
+ * Calculate partial derivate of the tree using variable var
+ * 
+ * @param[in] exp Expression AST to derivate
+ * @param[in] var Derivative variable
+ * @param[in] optimize If set result will be optimized
+ * @return new AST
+ * 
+ * @note you cannot use original tree after calling this
+ */
+struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize);
+
+/**
+ * Optimize given AST
+ * 
+ * @param[in] exp AST to optimize
+ * @return new AST
+ * 
+ * @note you cannot use original tree after calling this
+ */
+struct expr *optimize_tree(struct expr *exp);
+
+/**
+ * Set trace file and format
+ * 
+ * @param[in] file Output file
+ * @param[in] format Output format
+ */
+void set_trace(FILE *file, enum format fmt);
+
+#endif

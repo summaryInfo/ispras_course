@@ -11,16 +11,17 @@
 /*
  * A grammar corresponding to the parser:
  *
- * E9 := E9 "||" E8 | E8
- * E8 := E8 "&&" E7 | E7
- * E7 := E6 |  "!" E7
- * E6 := E5 "==" E6 | E5 "!=" E6 | E5
- * E5 := E4 ">" E5 | E4 "<" E5 | E4 "<=" E4 | E4 ">=" E5 | E4
+ * E10 := E10 "||" E9 | E9
+ * E9 := E9 "&&" E8 | E8
+ * E8 := E7 |  "!" E8
+ * E7 := E6 "==" E7 | E6 "!=" E7 | E6
+ * E6 := E5 ">" E6 | E5 "<" E6 | E5 "<=" E5 | E5 ">=" E6 | E5
+ * E5 := "log" E5 | E4
  * E4 := E4 "+" E3 | E4 "-" E3 | E3
  * E3 := E3 "*" E2 | E3 "/" E2 | E2
  * E2 := E1 "^" E2 | E1
  * E1 := "+" E1 | "-" E1 | E0
- * E0 := VAR | NUM | "(" E9 ")"
+ * E0 := VAR | NUM | "(" E10 ")"
  * NUM := <c double constant>
  * LETTER = "a" | ... | "z" | "A" | ... | "Z"
  * VAR := LETTER VAR | LETTER
@@ -30,20 +31,21 @@
 struct tag_info tags[] = {
     [t_constant] = {NULL, NULL, 0, 0},
     [t_variable] = {NULL, NULL, 0, 0},
+    [t_log] =  {"\\log ", "log", 1, 0},
     [t_power] = {"^", "^", 2, 1},
     [t_negate] =  {"-", "-", 1, 2},
     [t_inverse] =  {NULL, "1/", 1, 3},
     [t_multiply] =  {"\\cdot ", "*", -1, 3, t_inverse, "/"},
     [t_add] =  {"+", "+", -1, 4, t_negate, "-"},
-    [t_less] =  {"<", "<", 2, 5},
-    [t_greater] =  {">", ">", 2, 5},
-    [t_lessequal] =  {"<=", "<=", 2, 5},
-    [t_greaterequal] =  {">=", ">=", 2, 5},
-    [t_equal] =  {"=", "==", 2, 6},
-    [t_notequal] =  {"\\ne ", "!=", 2, 6},
-    [t_logical_not] =  {"\\lnot ", "!", 1, 7},
-    [t_logical_and] =  {"\\land ", "&&", -1, 8},
-    [t_logical_or] =  {"\\lor ", "||", -1, 9},
+    [t_less] =  {"<", "<", 2, 6},
+    [t_greater] =  {">", ">", 2, 6},
+    [t_lessequal] =  {"<=", "<=", 2, 6},
+    [t_greaterequal] =  {">=", ">=", 2, 6},
+    [t_equal] =  {"=", "==", 2, 7},
+    [t_notequal] =  {"\\ne ", "!=", 2, 7},
+    [t_logical_not] =  {"\\lnot ", "!", 1, 8},
+    [t_logical_and] =  {"\\land ", "&&", -1, 9},
+    [t_logical_or] =  {"\\lor ", "||", -1, 10},
 };
 
 #define LIT_CAP_STEP(x) ((x) ? 4*(x)/3 : 16)
@@ -136,11 +138,15 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
     return (*node = tmp);
 }
 
-static struct expr *exp_9(struct state *st);
+static struct expr *exp_10(struct state *st);
 
-static struct expr *exp_0(struct state *st) /* const, var, () */ {
-    if (expect(st, "(")) {
-        struct expr *node = exp_9(st);
+static struct expr *exp_0(struct state *st) /* const, var, (), log */ {
+    if (expect(st, tags[t_log].name)) {
+        struct expr *node = NULL;
+        append_child(st, &node, t_log, exp_0(st), NULL);
+        return node;
+    } else if (expect(st, "(")) {;
+        struct expr *node = exp_10(st);
         st->success &= expect(st, ")");
         return node;
     } else if (isdigit(peek_space(st))) {
@@ -249,44 +255,45 @@ static struct expr *exp_4(struct state *st) /* + - */ {
     return node ? node : first;
 }
 
-static struct expr *exp_5(struct state *st) /* > < >= <= */ {
+
+static struct expr *exp_6(struct state *st) /* > < >= <= */ {
     // <, >, <=, >= are binary, right associative
 
     struct expr *first = exp_4(st), *node = NULL;
 
     if (expect(st, tags[t_lessequal].name))
-        append_child(st, &node, t_lessequal, first, exp_5(st));
+        append_child(st, &node, t_lessequal, first, exp_6(st));
     else if (expect(st, tags[t_less].name))
-        append_child(st, &node, t_less, first, exp_5(st));
+        append_child(st, &node, t_less, first, exp_6(st));
     else if (expect(st, tags[t_greaterequal].name))
-        append_child(st, &node, t_greaterequal, first, exp_5(st));
+        append_child(st, &node, t_greaterequal, first, exp_6(st));
     else if (expect(st, tags[t_greater].name))
-        append_child(st, &node, t_greater, first, exp_5(st));
+        append_child(st, &node, t_greater, first, exp_6(st));
 
     return node ? node : first;
 }
 
-static struct expr *exp_6(struct state *st) /* == != */ {
+static struct expr *exp_7(struct state *st) /* == != */ {
     // ==, != are binary, right associative
 
-    struct expr *first = exp_5(st), *node = NULL;
+    struct expr *first = exp_6(st), *node = NULL;
 
     if (expect(st, tags[t_equal].name))
-        append_child(st, &node, t_equal, first, exp_6(st));
+        append_child(st, &node, t_equal, first, exp_7(st));
     else if (expect(st, tags[t_notequal].name))
-        append_child(st, &node, t_notequal, first, exp_6(st));
+        append_child(st, &node, t_notequal, first, exp_7(st));
 
     return node ? node : first;
 }
 
-static struct expr *exp_7(struct state *st) /* ! */ {
+static struct expr *exp_8(struct state *st) /* ! */ {
     // ! is unary, prefix, right associative
     // At most 1 '!' can be generated
 
     _Bool neg = 0;
     while (expect(st, tags[t_logical_not].name)) neg = !neg;
 
-    struct expr *first = exp_6(st), *node = NULL;
+    struct expr *first = exp_7(st), *node = NULL;
 
     // TODO Optimize equality and comparisons here
 
@@ -295,24 +302,24 @@ static struct expr *exp_7(struct state *st) /* ! */ {
     return node ? node : first;
 }
 
-static struct expr *exp_8(struct state *st) /* && */ {
+static struct expr *exp_9(struct state *st) /* && */ {
     // && is binary, left associative
 
-    struct expr *first = exp_7(st), *node = NULL;
+    struct expr *first = exp_8(st), *node = NULL;
 
     while (expect(st, tags[t_logical_and].name) &&
-           append_child(st, &node, t_logical_and, first, exp_7(st)));
+           append_child(st, &node, t_logical_and, first, exp_8(st)));
 
     return node ? node : first;
 }
 
-static struct expr *exp_9(struct state *st) /* || */ {
+static struct expr *exp_10(struct state *st) /* || */ {
     // || is binary, left associative
 
-    struct expr *first = exp_8(st), *node = NULL;
+    struct expr *first = exp_9(st), *node = NULL;
 
     while (expect(st, tags[t_logical_or].name) &&
-           append_child(st, &node, t_logical_or, first, exp_8(st)));
+           append_child(st, &node, t_logical_or, first, exp_9(st)));
 
     return node ? node : first;
 }
@@ -336,7 +343,7 @@ struct expr *parse_tree(const char *in) {
         .last_line = in
     };
 
-    struct expr *tree = exp_9(&st);
+    struct expr *tree = exp_10(&st);
 
     st.success &= !peek_space(&st);
 

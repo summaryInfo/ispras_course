@@ -13,7 +13,7 @@ static int dump_tree_graph(FILE *out, struct expr *expr, int index) {
     } else if (tag == t_variable) {
         fprintf(out, "\tn%d[label=\"var %s\", shape=box];\n", index, expr->id);
     } else {
-        assert((tags[tag].arity < 0 && expr->n_child > 1) || (size_t)tags[tag].arity == expr->n_child);
+        assert((tags[tag].arity < 0 && expr->n_child > 0) || (size_t)tags[tag].arity == expr->n_child);
 
         struct expr **it = expr->children;
         int node_index = index++, next_index;
@@ -38,7 +38,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
 
     assert(tag == t_constant ||
            tag == t_variable ||
-           (info->arity < 0 && expr->n_child > 1) ||
+           (info->arity < 0 && expr->n_child > 0) ||
            (size_t)info->arity == expr->n_child);
 
     switch(tag) {
@@ -138,7 +138,7 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
 
         if (outer_prio < info->prio) fputc('(', out);
 
-        assert((info->arity < 0 && expr->n_child > 1) || (size_t)info->arity == expr->n_child);
+        assert((info->arity < 0 && expr->n_child > 0) || (size_t)info->arity == expr->n_child);
         assert(info->name);
 
         struct expr **it = expr->children;
@@ -161,7 +161,7 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
     }
 }
 
-void dump_tree(FILE *out, enum format fmt, struct expr *expr) {
+void dump_tree(FILE *out, enum format fmt, struct expr *expr, bool full) {
     switch (fmt) {
     case fmt_graph:
         fputs("graph \"\" {\n\tlabel = \"", out);
@@ -177,7 +177,8 @@ void dump_tree(FILE *out, enum format fmt, struct expr *expr) {
     case fmt_tex:
         fputs("$$\n", out);
         dump_tree_tex(out, expr, MAX_PRIO);
-        fputs("\n$$\n\\bye\n", out);
+        fputs("\n$$\n", out);
+        if (full) fputs("\\bye\n", out);
         break;
     }
     fflush(out);

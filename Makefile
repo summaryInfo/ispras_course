@@ -1,6 +1,6 @@
 CFLAGS += -std=c11 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers
 PROG := parse
-OBJS := expr.o dump.o main.o
+OBJS := expr.o dump.o main.o optimize.o
 
 ifdef NDEBUG
 CFLAGS += -O2 -flto -DNDEBUG=$(NDEBUG)
