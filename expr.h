@@ -31,24 +31,10 @@ enum tag {
     t_logical_and,
     t_logical_or,
     t_logical_not,
-    t_MAX = t_logical_not,
+    t_if,
+    t_statement,
+    t_MAX = t_statement,
 };
-
-/**
- * Operation description
- */
-struct tag_info {
-    const char *tex_name; /** TeX operation name */
-    const char *name; /** String/graph name */
-    int arity; /** operation arity, -1 for variable */
-    int prio; /** operation priority 0 to MAX_PRIO */
-    enum tag alt_tag; /** alternate operation symbol child tag */
-    const char *alt; /** alternate operation name */
-};
-extern struct tag_info tags[];
-
-/** MAX priority */
-#define MAX_PRIO 15
 
 /**
  * AST node structure

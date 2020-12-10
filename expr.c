@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "expr.h"
+#include "expr-impl.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -11,6 +12,8 @@
 /*
  * A grammar corresponding to the parser:
  *
+ * E12 := E11 (";" E12)
+ * E11 := E10 | "if" E11 "then" E11 ("else" E11) | "while" E11 "do" E11
  * E10 := E10 "||" E9 | E9
  * E9 := E9 "&&" E8 | E8
  * E8 := E7 |  "!" E8
@@ -21,7 +24,7 @@
  * E3 := E3 "*" E2 | E3 "/" E2 | E2
  * E2 := E1 "^" E2 | E1
  * E1 := "+" E1 | "-" E1 | E0
- * E0 := VAR | NUM | "(" E10 ")"
+ * E0 := VAR | NUM | "(" E12 ")"
  * NUM := <c double constant>
  * LETTER = "a" | ... | "z" | "A" | ... | "Z"
  * VAR := LETTER VAR | LETTER
@@ -46,6 +49,8 @@ struct tag_info tags[] = {
     [t_logical_not] =  {"\\lnot ", "!", 1, 8},
     [t_logical_and] =  {"\\land ", "&&", -1, 9},
     [t_logical_or] =  {"\\lor ", "||", -1, 10},
+    [t_if] = {"{\rm if}", "if", 3, 11},
+    [t_statement] = {";", ";", -1, 12},
 };
 
 #define LIT_CAP_STEP(x) ((x) ? 4*(x)/3 : 16)
@@ -138,7 +143,7 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
     return (*node = tmp);
 }
 
-static struct expr *exp_10(struct state *st);
+static struct expr *exp_12(struct state *st);
 
 static struct expr *exp_0(struct state *st) /* const, var, (), log */ {
     if (expect(st, tags[t_log].name)) {
@@ -146,7 +151,7 @@ static struct expr *exp_0(struct state *st) /* const, var, (), log */ {
         append_child(st, &node, t_log, exp_0(st), NULL);
         return node;
     } else if (expect(st, "(")) {;
-        struct expr *node = exp_10(st);
+        struct expr *node = exp_12(st);
         st->success &= expect(st, ")");
         return node;
     } else if (isdigit(peek_space(st))) {
@@ -324,6 +329,31 @@ static struct expr *exp_10(struct state *st) /* || */ {
     return node ? node : first;
 }
 
+static struct expr *exp_11(struct state *st) /* if-then-else */ {
+    // conditionals are expressions
+
+    if (expect(st, "if")) {
+        struct expr *first = exp_10(st), *node = NULL;
+        if (expect(st, "then") &&
+                append_child(st, &node, t_if, first, exp_10(st))) {
+            append_child(st, &node, t_if, NULL,
+                         expect(st, "else") ? exp_10(st) : const_node(0));
+        }
+        return node ? node : first;
+    } else return exp_9(st);
+}
+
+static struct expr *exp_12(struct state *st) /* ; */ {
+    // semicolon works like comma in C
+
+    struct expr *first = exp_11(st), *node = NULL;
+
+    while (expect(st, tags[t_statement].name) &&
+           append_child(st, &node, t_statement, first, exp_11(st)));
+
+    return node ? node : first;
+}
+
 void free_tree(struct expr *expr) {
     if (!expr) return;
 
@@ -343,7 +373,7 @@ struct expr *parse_tree(const char *in) {
         .last_line = in
     };
 
-    struct expr *tree = exp_10(&st);
+    struct expr *tree = exp_12(&st);
 
     st.success &= !peek_space(&st);
 

@@ -54,6 +54,8 @@ Using wrapper:
     ./display tex "0+1+2/3^5^3 > x^(1/2)
     ./display derivate-x-optimize-graph "log (x+1)"
     ./display optimize-tex "1+2/3"
+    ./display optimize-graph "if (2;4;5) then 6 else 7"
+    ./display graph "if (2;4;5) then 6 else 7"
 
 ## Notes
 

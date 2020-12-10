@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "expr.h"
+#include "expr-impl.h"
 
 #include <assert.h>
 #include <math.h>
@@ -11,31 +12,6 @@
 
 FILE *tfile = NULL;
 enum format tfmt = fmt_string;
-
-#define EPS 1e-6
-
-inline static bool has_childern(struct expr *exp) {
-    return exp->tag != t_constant && exp->tag != t_variable;
-}
-
-inline static bool is_const(struct expr *exp) {
-    return exp->tag == t_constant;
-}
-
-inline static bool is_zero(double x) {
-    return fabs(x) < EPS;
-}
-
-inline static bool is_eq_const(struct expr *exp, double x) {
-    return is_const(exp) && is_zero(exp->value - x);
-}
-
-inline static struct expr *node_of_size(enum tag tag, size_t n) {
-    struct expr *tmp = calloc(1, sizeof(*tmp) + n*sizeof(tmp));
-    tmp->n_child = n;
-    tmp->tag = tag;
-    return tmp;
-}
 
 inline static struct expr *node(enum tag tag, size_t nch, ...) {
     struct expr *tmp = node_of_size(tag, nch);
@@ -48,17 +24,6 @@ inline static struct expr *node(enum tag tag, size_t nch, ...) {
         tmp->children[i] = va_arg(va, struct expr *);
     
     va_end(va);
-
-    return tmp;
-}
-
-
-inline static struct expr *const_node(double value) {
-    struct expr *tmp = malloc(sizeof(*tmp));
-    assert(tmp);
-
-    tmp->value = value;
-    tmp->tag = t_constant;
 
     return tmp;
 }
@@ -220,17 +185,12 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
     }
     case t_add:
     case t_negate:
-    case t_less: /* Just ignore comparisons and derivate subexpressions */
-    case t_greater:
-    case t_lessequal:
-    case t_greaterequal:
-    case t_equal:
-    case t_notequal:
-    case t_logical_and:
-    case t_logical_or:
-    case t_logical_not:
         for (size_t i = 0; i < exp->n_child; i++)
             exp->children[i] = derivate_tree(exp->children[i], var, optimize);
+        break;
+    default:
+        /* All other nodes cannot be differentiated */
+        assert(0);
     }
 
     if (tfile) dump_tree(tfile, tfmt, res, !optimize);
@@ -403,6 +363,20 @@ static struct expr *fold_constants(struct expr *exp) {
     case t_constant:
     case t_variable:
         break;
+    case t_if:
+        assert(exp->n_child == 3);
+        if (is_const(exp->children[0])) {
+            if (is_zero(exp->children[0]->value)) {
+                res = exp->children[2];
+                free_tree(exp->children[1]);
+            } else {
+                res = exp->children[1];
+                free_tree(exp->children[2]);
+            }
+            free(exp->children[0]);
+            free(exp);
+        }
+        break;
     case t_log:
         assert(exp->n_child == 1);
         if (is_const(exp->children[0])) {
@@ -554,6 +528,24 @@ static struct expr *fold_constants(struct expr *exp) {
             free(exp);
         }
         break;
+    case t_statement: {
+        size_t newn = 0;
+        for (size_t i = 0; i < exp->n_child; i++) {
+            if (is_const(exp->children[i]) && i != exp->n_child - 1) {
+                free(exp->children[i]);
+            } else {
+                exp->children[newn++] = exp->children[i];
+            }
+        }
+        res->n_child = newn;
+        if (newn == 1) {
+            res = exp->children[0];
+            free(exp);
+        } else {
+            res = realloc(exp, sizeof(*exp) + newn*sizeof(exp));
+            assert(res);
+        }
+    }
     }
 
     return res;

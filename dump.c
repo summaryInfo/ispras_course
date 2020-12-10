@@ -1,4 +1,5 @@
 #include "expr.h"
+#include "expr-impl.h"
 
 #include <assert.h>
 
@@ -48,6 +49,18 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
     case t_variable:
         assert(expr->id);
         fputs(expr->id, out);
+        break;
+    case t_if:
+        if (outer_prio < info->prio) fputs("\\left(", out);
+        fputs("{\rm if}", out);
+        dump_tree_tex(out, expr->children[0], info->prio);
+        fputs("{\rm then}", out);
+        dump_tree_tex(out, expr->children[1], info->prio);
+        if (!is_eq_const(expr->children[2], 0)) {
+            fputs("{\rm else}", out);
+            dump_tree_tex(out, expr->children[2], info->prio);
+        }
+        if (outer_prio < info->prio) fputs("\\right)", out);
         break;
     case t_multiply: {
         // Multiplication and division needs
@@ -138,6 +151,18 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
     } else if (tag == t_variable) {;
         assert(expr->id);
         fputs(expr->id, out);
+    } else if (tag == t_if) {
+        if (outer_prio < info->prio) fputc('(', out);
+
+        fputs("if ", out);
+        dump_tree_string(out, expr->children[0], info->prio);
+        fputs(" then ", out);
+        dump_tree_string(out, expr->children[1], info->prio);
+        if (!is_eq_const(expr->children[2], 0)) {
+            fputs(" else ", out);
+            dump_tree_string(out, expr->children[2], info->prio);
+        }
+        if (outer_prio < info->prio) fputc(')', out);
     } else {
 
         if (outer_prio < info->prio ||
