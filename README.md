@@ -18,6 +18,7 @@ Possible output formats are string (plain text), tex, graphviz dot format.
 * `-F` trace format
 * `-O` optimize
 * `-d` take derivative
+* `-c` comptile
 
 ## Dependencies
 
@@ -45,6 +46,10 @@ Examples:
 Generate PNG file:
 
     ./parse -f graph "1-2+3" | dot -Tpng >| out.png
+
+Compile to assembly:
+
+    ./parse -ct.xs "if 1 > 2 then x else log4/log2"
 
 Using wrapper:
 

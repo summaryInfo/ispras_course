@@ -23,8 +23,10 @@ _Noreturn void usage(const char *argv0) {
     printf("Usage:\n"
            "\t%s [-f <format>] [-o <outfile>] [-O] [-d <var>] [-t] [-D <tracefile>] [-F <traceformat>] <expr>\n"
            "\t%s [-f <format>] [-o <outfile>] [-O] [-d <var>] [-t] [-D <tracefile>] [-F <traceformat>] -i <infile>\n"
+           "\t%s [-O] [-d <var>] [-t] [-D <tracefile>] [-F <traceformat>] -c<asmfile> <expr>\n"
+           "\t%s [-O] [-d <var>] [-t] [-D <tracefile>] [-F <traceformat>] -c<asmfile> -i <infile>\n"
            "<format> is one of tex, string, graph\n"
-           "Default <outfile> is stdout\n", argv0, argv0);
+           "Default <outfile> is stdout\n", argv0, argv0, argv0, argv0);
     exit(ERC_WRONG_PARAM);
 }
 
