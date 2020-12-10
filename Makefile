@@ -24,6 +24,6 @@ expr.o: expr.h expr-impl.h
 main.o: expr.h
 dump.o: expr.h expr-impl.h
 optimize.o: expr.h expr-impl.h
-codegen.c: expr.h expr-impl.h
+codegen.o: expr.h expr-impl.h
 
 .PHONY: all clean run
