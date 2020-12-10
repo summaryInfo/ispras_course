@@ -381,7 +381,7 @@ vm_state::vm_state(std::size_t stack_size, std::string path) {
     defnative(power_d, "(dd)d", "power_d");
 
     for (function &fn : object.functions)
-        if (!fn.code.size())
+        if (!fn.code.size() && !fn.native_function)
             throw std::logic_error("Unbound native function");
 }
 
