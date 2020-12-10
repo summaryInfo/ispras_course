@@ -118,4 +118,12 @@ struct expr *optimize_tree(struct expr *exp);
  */
 void set_trace(FILE *file, enum format fmt);
 
+/**
+ * Generate assembly code for XSVM
+ * 
+ * @param[in] exp tree to compile
+ * @param[inout] out file to output to
+ */
+void generate_code(struct expr *exp, FILE *out);
+
 #endif

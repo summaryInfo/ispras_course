@@ -50,9 +50,10 @@ int main(int argc, char **argv) {
     enum format fmt = fmt_string, tracefmt = -1U;
     const char *output = NULL, *input = NULL;
     const char *tracefile = NULL, *var = NULL;
+    const char *asmout = NULL;
     bool optimize = 0, tracesteps = 0;
 
-    for (int c; (c = getopt(argc, argv, "OD:d:ti:o:f:")) != -1;) {
+    for (int c; (c = getopt(argc, argv, "c:OD:d:ti:o:f:")) != -1;) {
         switch (c) {
         case 'F':
         case 'f': {
@@ -86,6 +87,9 @@ int main(int argc, char **argv) {
         case 'i':
             input = optarg;
             break;
+        case 'c':
+            asmout = optarg;
+            break;
         default:
             usage(argv[0]);
         }
@@ -116,7 +120,12 @@ int main(int argc, char **argv) {
     if (var) exp = derivate_tree(exp, var, optimize);
     if (optimize) exp = optimize_tree(exp);
 
-    dump_tree(out, fmt, exp, 1);
+    if (asmout) {
+        FILE *as = fopen(asmout, "w");
+        if (!as) usage(argv[0]);
+        generate_code(exp, as);
+        fclose(as);
+    } else dump_tree(out, fmt, exp, 1);
 
     if (input) munmap((void *)in, size);
     if (tfile) fclose(tfile);

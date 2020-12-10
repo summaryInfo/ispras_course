@@ -1,6 +1,6 @@
 CFLAGS += -std=c11 -Wall -Wextra -Wpedantic -Wno-missing-field-initializers
 PROG := parse
-OBJS := expr.o dump.o main.o optimize.o
+OBJS := expr.o dump.o main.o optimize.o codegen.o
 LDLIBS += -lm
 
 ifdef NDEBUG
@@ -24,5 +24,6 @@ expr.o: expr.h expr-impl.h
 main.o: expr.h
 dump.o: expr.h expr-impl.h
 optimize.o: expr.h expr-impl.h
+codegen.c: expr.h expr-impl.h
 
 .PHONY: all clean run
