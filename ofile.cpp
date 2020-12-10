@@ -154,6 +154,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
             if (ref) {
                 auto res = *ref == *state;
                 if (!res) {
+                    std::cerr << std::hex << (int)*op <<  " ";
                     std::cerr << "Wrong type interface after jump" << std::endl;
                     std::cerr << "\t" << *ref << std::endl;
                     std::cerr << "\t" << *state << std::endl;
@@ -219,6 +220,7 @@ bool trace_types(check_env &env, std::shared_ptr<stack_state> state, std::vector
                 return false;
             }
             if (!trace_types(env, state, op + disp)) return false;
+            if (cmd == op_jmp_) return true;
         } break;
         case ins_plain:
             if (!check(insns[cmd].sig)) return false;
