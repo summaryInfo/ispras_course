@@ -343,7 +343,7 @@ static void sqrt_d(vm_state &vm) {
 }
 
 static void log_d(vm_state &vm) {
-    double sq = std::sqrt(vm.pop<double>());
+    double sq = std::log(vm.pop<double>());
     vm.push(sq);
 }
 static void power_d(vm_state &vm) {
