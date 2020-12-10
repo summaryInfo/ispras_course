@@ -104,6 +104,8 @@ static void sort_tree(struct expr *exp) {
             }
             //fallthrough
         case t_power:
+        case t_if:
+        case t_statement:
             break;
         default:
             qsort(exp->children, exp->n_child, sizeof(exp), cmp_tree);
