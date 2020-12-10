@@ -49,8 +49,9 @@ struct tag_info tags[] = {
     [t_logical_not] =  {"\\lnot ", "!", 1, 8},
     [t_logical_and] =  {"\\land ", "&&", -1, 9},
     [t_logical_or] =  {"\\lor ", "||", -1, 10},
-    [t_if] = {"{\rm if}", "if", 3, 11},
-    [t_statement] = {";", ";", -1, 12},
+    [t_assign] = {":=", "=", 2, 11},
+    [t_if] = {"{\rm if}", "if", 3, 12},
+    [t_statement] = {";", ";", -1, 13},
 };
 
 #define LIT_CAP_STEP(x) ((x) ? 4*(x)/3 : 16)
@@ -120,6 +121,20 @@ inline static _Bool expect(struct state *st, const char *str) {
     return !*str;
 }
 
+inline static _Bool expect_not_followed(struct state *st, const char *str, char c) {
+    if (!st->success) return 0;
+
+    skip_spaces(st);
+
+    const char *str0 = st->inbuf;
+    while (*str && *str0 == *str) str0++, str++;
+
+    if (*str || *str0 == c) st->expected = str;
+    else st->inbuf = str0;
+
+    return !*str && *str0 != c;
+}
+
 inline static _Bool append_child(struct state *st, struct expr **node, enum tag tag, struct expr *first, struct expr *new) {
     size_t nch = *node ? (*node)->n_child : 1;
     struct expr *tmp = realloc(*node, sizeof(*tmp) + (!!new + nch)*sizeof(tmp));
@@ -143,7 +158,7 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
     return (*node = tmp);
 }
 
-static struct expr *exp_12(struct state *st);
+static struct expr *exp_13(struct state *st);
 
 static struct expr *exp_0(struct state *st) /* const, var, (), log */ {
     if (expect(st, tags[t_log].name)) {
@@ -151,7 +166,7 @@ static struct expr *exp_0(struct state *st) /* const, var, (), log */ {
         append_child(st, &node, t_log, exp_0(st), NULL);
         return node;
     } else if (expect(st, "(")) {;
-        struct expr *node = exp_12(st);
+        struct expr *node = exp_13(st);
         st->success &= expect(st, ")");
         return node;
     } else if (isdigit(peek_space(st))) {
@@ -329,27 +344,40 @@ static struct expr *exp_10(struct state *st) /* || */ {
     return node ? node : first;
 }
 
-static struct expr *exp_11(struct state *st) /* if-then-else */ {
+static struct expr *exp_11(struct state *st) /* = */ {
+    // assigment is right associative
+
+    struct expr *first = exp_10(st), *node = NULL;
+
+    if (expect_not_followed(st, tags[t_assign].name, '=')) {
+        if (first->tag != t_variable) set_fail(st, "<variable>");
+        append_child(st, &node, t_assign, first, exp_11(st));
+    }
+
+    return node ? node : first;
+}
+
+static struct expr *exp_12(struct state *st) /* if-then-else */ {
     // conditionals are expressions
 
     if (expect(st, "if")) {
-        struct expr *first = exp_10(st), *node = NULL;
+        struct expr *first = exp_11(st), *node = NULL;
         if (expect(st, "then") &&
-                append_child(st, &node, t_if, first, exp_10(st))) {
+                append_child(st, &node, t_if, first, exp_11(st))) {
             append_child(st, &node, t_if, NULL,
-                         expect(st, "else") ? exp_10(st) : const_node(0));
+                         expect(st, "else") ? exp_11(st) : const_node(0));
         }
         return node ? node : first;
-    } else return exp_9(st);
+    } else return exp_11(st);
 }
 
-static struct expr *exp_12(struct state *st) /* ; */ {
+static struct expr *exp_13(struct state *st) /* ; */ {
     // semicolon works like comma in C
 
-    struct expr *first = exp_11(st), *node = NULL;
+    struct expr *first = exp_12(st), *node = NULL;
 
     while (expect(st, tags[t_statement].name) &&
-           append_child(st, &node, t_statement, first, exp_11(st)));
+           append_child(st, &node, t_statement, first, exp_12(st)));
 
     return node ? node : first;
 }
@@ -373,7 +401,7 @@ struct expr *parse_tree(const char *in) {
         .last_line = in
     };
 
-    struct expr *tree = exp_12(&st);
+    struct expr *tree = exp_13(&st);
 
     st.success &= !peek_space(&st);
 

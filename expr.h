@@ -33,7 +33,8 @@ enum tag {
     t_logical_not,
     t_if,
     t_statement,
-    t_MAX = t_statement,
+    t_assign,
+    t_MAX = t_assign,
 };
 
 /**

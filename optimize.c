@@ -105,7 +105,10 @@ static void sort_tree(struct expr *exp) {
             //fallthrough
         case t_power:
         case t_if:
+        case t_logical_and:
+        case t_logical_or:
         case t_statement:
+        case t_assign:
             break;
         default:
             qsort(exp->children, exp->n_child, sizeof(exp), cmp_tree);
@@ -548,6 +551,9 @@ static struct expr *fold_constants(struct expr *exp) {
             assert(res);
         }
     }
+    case t_assign:;
+        // TODO Dead assignments?
+        break;
     }
 
     return res;

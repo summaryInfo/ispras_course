@@ -32,6 +32,12 @@ static void do_codegen(struct expr *exp, FILE *out) {
         do_codegen(exp->children[0], out);
         fputs("\tneg.d\n", out);
         break;
+    case t_assign:
+        do_codegen(exp->children[1], out);
+        assert(exp->children[0]->tag == t_variable);
+        fprintf(out, "\tdup.l\n"
+                     "\tst.d %s\n", exp->children[0]->id);
+        break;
     case t_inverse:
         assert(0);
         break;
@@ -40,10 +46,10 @@ static void do_codegen(struct expr *exp, FILE *out) {
         for (size_t i = 1; i < exp->n_child; i++) {
             if (exp->children[i]->tag == t_negate) {
                 do_codegen(exp->children[i]->children[0], out);
-                fprintf(out, "\tsub.d\n");
+                fputs("\tsub.d\n", out);
             } else {
                 do_codegen(exp->children[i], out);
-                fprintf(out, "\tadd.d\n");
+                fputs("\tadd.d\n", out);
             }
         }
         break;
@@ -52,10 +58,10 @@ static void do_codegen(struct expr *exp, FILE *out) {
         for (size_t i = 1; i < exp->n_child; i++) {
             if (exp->children[i]->tag == t_inverse) {
                 do_codegen(exp->children[i]->children[0], out);
-                fprintf(out, "\tdiv.d\n");
+                fputs("\tdiv.d\n", out);
             } else {
                 do_codegen(exp->children[i], out);
-                fprintf(out, "\tmul.d\n");
+                fputs("\tmul.d\n", out);
             }
         }
         break;
@@ -144,7 +150,7 @@ static void do_codegen(struct expr *exp, FILE *out) {
     case t_statement:
         for (size_t i = 0; i < exp->n_child - 1; i++) {
             do_codegen(exp->children[i], out);
-            fputs("\tdrop.d\n", out);
+            fputs("\tdrop.l\n", out);
         }
         do_codegen(exp->children[exp->n_child - 1], out);
     }
