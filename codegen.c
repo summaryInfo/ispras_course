@@ -77,37 +77,37 @@ static void do_codegen(struct expr *exp, FILE *out) {
             fprintf(out, "\tjg.d L%zu\n", l1);
             break;
         case t_lessequal:
-            fprintf(out, "\tld.d $%lf\n", EPS);
-            fprintf(out, "\tadd.d\n");
-            fprintf(out, "\tjl.d L%zu\n", l1);
+            fprintf(out, "\tld.d $%lf\n"
+                         "\tadd.d\n"
+                         "\tjl.d L%zu\n", EPS, l1);
             break;
         case t_greaterequal:
-            fprintf(out, "\tld.d $%lf\n", EPS);
-            fprintf(out, "\tsub.d\n");
-            fprintf(out, "\tjg.d L%zu\n", l1);
+            fprintf(out, "\tld.d $%lf\n"
+                         "\tsub.d\n"
+                         "\tjg.d L%zu\n", EPS, l1);
             break;
         case t_equal:
             fprintf(out, "\tsub.d\n");
             //fallthrough
         case t_logical_not:
-            fprintf(out, "\tcall.d abs_d\n");
-            fprintf(out, "\tld.d $%lf\n", EPS);
-            fprintf(out, "\tjl.d L%zu\n", l1);
+            fprintf(out, "\tcall.d abs_d\n"
+                         "\tld.d $%lf\n"
+                         "\tjl.d L%zu\n", EPS, l1);
             break;
         case t_notequal:
-            fprintf(out, "\tsub.d\n");
-            fprintf(out, "\tcall.d abs_d\n");
-            fprintf(out, "\tld.d $%lf\n", EPS);
-            fprintf(out, "\tjg.d L%zu\n", l1);
+            fprintf(out, "\tsub.d\n"
+                         "\tcall.d abs_d\n"
+                         "\tld.d $%lf\n"
+                         "\tjg.d L%zu\n", EPS, l1);
             break;
         default:
             assert(0);
         }
-        fprintf(out, "\tld.d $0\n");
-        fprintf(out, "\tjmp L%zu\n", l2);
-        fprintf(out, "L%zu:\n", l1);
-        fprintf(out, "\tld.d $1\n");
-        fprintf(out, "L%zu:\n", l2);
+        fprintf(out, "\tld.d $0\n"
+                     "\tjmp L%zu\n"
+                     "L%zu:\n"
+                     "\tld.d $1\n"
+                     "L%zu:\n", l2, l1, l2);
         break;
     }
     case t_logical_and:
@@ -115,16 +115,16 @@ static void do_codegen(struct expr *exp, FILE *out) {
         size_t lend = label_n++, lend2 = label_n++;
         do_codegen(exp->children[0], out);
         for (size_t i = 1; i < exp->n_child; i++) {
-            fprintf(out, "\tcall.d abs_d\n");
-            fprintf(out, "\tld.d $%lf\n", EPS);
-            fprintf(out, "\tj%c.d L%zu\n", tag == t_logical_or ? 'g' : 'l', lend);
+            fprintf(out, "\tcall.d abs_d\n"
+                         "\tld.d $%lf\n"
+                         "\tj%c.d L%zu\n", EPS, tag == t_logical_or ? 'g' : 'l', lend);
             do_codegen(exp->children[0], out);
         }
         if (exp->n_child > 1) {
-            fprintf(out, "\tjmp L%zu\n", lend2);
-            fprintf(out, "L%zu:\n", lend);
-            fprintf(out, "\tld.d $%d\n", tag == t_logical_or);
-            fprintf(out, "L%zu:\n", lend2);
+            fprintf(out, "\tjmp L%zu\n"
+                         "L%zu:\n"
+                         "\tld.d $%d\n"
+                         "L%zu:\n", lend2, lend, tag == t_logical_or, lend2);
         }
         break;
     }
@@ -132,11 +132,11 @@ static void do_codegen(struct expr *exp, FILE *out) {
         size_t lend = label_n++, lelse = label_n++;
         do_codegen(exp->children[0], out);
         fprintf(out, "\tcall.d abs_d\n");
-        fprintf(out, "\tld.d $%lf\n", EPS);
-        fprintf(out, "\tjg.d L%zu\n", lelse);
+        fprintf(out, "\tld.d $%lf\n"
+                     "\tjl.d L%zu\n", EPS, lelse);
         do_codegen(exp->children[1], out);
-        fprintf(out, "\tjmp L%zu\n", lend);
-        fprintf(out, "L%zu:\n", lelse);
+        fprintf(out, "\tjmp L%zu\n"
+                     "L%zu:\n", lend, lelse);
         do_codegen(exp->children[2], out);
         fprintf(out, "L%zu:\n", lend);
         break;
@@ -181,8 +181,8 @@ static void generate_variables(struct expr *exp, FILE *out) {
         fprintf(out, ".local double %s\n", variables[i]);
 
     for (size_t i = 0; i < nvars; i++) {
-        fprintf(out, "\tcall.d scan_d\n");
-        fprintf(out, "\tst.d %s\n", variables[i]);
+        fprintf(out, "\tcall.d scan_d\n"
+                     "\tst.d %s\n", variables[i]);
     }
 
     free(variables);
@@ -216,6 +216,6 @@ void generate_code(struct expr *exp, FILE *out) {
     generate_variables(exp, out);
 
     do_codegen(exp, out);
-    fputs("\tcall print_d\n", out);
-    fputs("\tret\n", out);
+    fputs("\tcall print_d\n"
+          "\tret\n", out);
 }
