@@ -342,6 +342,16 @@ static void sqrt_d(vm_state &vm) {
     vm.push(sq);
 }
 
+static void log_d(vm_state &vm) {
+    double sq = std::sqrt(vm.pop<double>());
+    vm.push(sq);
+}
+static void power_d(vm_state &vm) {
+    double p = vm.pop<double>();
+    double sq = std::pow(vm.pop<double>(), p);
+    vm.push(sq);
+}
+
 vm_state::vm_state(std::size_t stack_size, std::string path) {
     std::ifstream fstr(path);
     if (!fstr.is_open()) {
@@ -367,6 +377,8 @@ vm_state::vm_state(std::size_t stack_size, std::string path) {
     defnative(print_d, "(d)", "print_d");
     defnative(scan_d, "()d", "scan_d");
     defnative(sqrt_d, "(d)d", "sqrt_d");
+    defnative(log_d, "(d)d", "log_d");
+    defnative(power_d, "(dd)d", "power_d");
 
     for (function &fn : object.functions)
         if (!fn.code.size())
