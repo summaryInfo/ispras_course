@@ -17,7 +17,6 @@ Possible output formats are string (plain text), tex, graphviz dot format.
 * `-D` trace output file (default is output file)
 * `-F` trace format
 * `-O` optimize
-* `-d` take derivative
 * `-c` comptile
 
 ## Dependencies
@@ -40,7 +39,7 @@ Examples:
     ./parse -f graph -o out.dot "x*y*x + --2"
     ./parse  -o out.txt "!(123 < 1 && x / 2 >= y)"
     ./parse "x + 2 < 4*x || x == 2"
-    ./parse -Odx "x^x+x*(x+y)"
+    ./parse -O "(x^x+x*(x+y))'x"
     echo "1+2/3" > file.txt && ./parse -i file.txt
 
 Generate PNG file:
@@ -58,7 +57,7 @@ Using wrapper:
     ./display graph "x*y*x + --2"
     ./display string "!(123 < 1 && x / 2 >= y)"
     ./display tex "0+1+2/3^5^3 > x^(1/2)
-    ./display derive-x-optimize-graph "log (x+1)"
+    ./display optimize-graph "(log (x+1))'x"
     ./display optimize-tex "1+2/3"
     ./display optimize-graph "if (2;4;5) then 6 else 7"
     ./display graph "if (2;4;5) then 6 else 7"

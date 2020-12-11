@@ -51,9 +51,9 @@ const char *make_input(const char *input, const char *arg, size_t *size) {
 int main(int argc, char **argv) {
     enum format fmt = fmt_string, tracefmt = -1U;
     const char *output = NULL, *input = NULL;
-    const char *tracefile = NULL, *var = NULL;
+    const char *tracefile = NULL;
     const char *asmout = NULL;
-    bool optimize = 0, tracesteps = 0;
+    bool tracesteps = 0;
 
     for (int c; (c = getopt(argc, argv, "c:OD:d:ti:o:f:")) != -1;) {
         switch (c) {
@@ -76,9 +76,6 @@ int main(int argc, char **argv) {
             break;
         case 'O':
             optimize = 1;
-            break;
-        case 'd':
-            var = optarg;
             break;
         case 't':
             tracesteps = 1;
@@ -119,8 +116,10 @@ int main(int argc, char **argv) {
         set_trace(tfile ? tfile : stdout, tracefmt);
     }
 
-    if (var) exp = derive_tree(exp, var, optimize);
     if (optimize) exp = optimize_tree(exp);
+
+    if (tfile && tracefmt == fmt_tex)
+        fputs("\\bye\n", tfile);
 
     if (asmout) {
         FILE *as = fopen(asmout, "w");

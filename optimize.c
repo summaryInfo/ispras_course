@@ -13,32 +13,6 @@
 FILE *tfile = NULL;
 enum format tfmt = fmt_string;
 
-inline static struct expr *node(enum tag tag, size_t nch, ...) {
-    struct expr *tmp = node_of_size(tag, nch);
-    assert(tmp);
-
-    va_list va;
-    va_start(va, nch);
-    
-    for (size_t i = 0; i < nch; i++)
-        tmp->children[i] = va_arg(va, struct expr *);
-    
-    va_end(va);
-
-    return tmp;
-}
-
-inline static struct expr *var_node(const char *var) {
-    struct expr *tmp = malloc(sizeof(*tmp));
-    assert(tmp);
-
-    tmp->id = strdup(var);
-    tmp->tag = t_variable;
-
-    return tmp;
-
-}
-
 inline static struct expr *deep_copy(struct expr *exp) {
     struct expr *res;
     switch (exp->tag) {
@@ -46,7 +20,7 @@ inline static struct expr *deep_copy(struct expr *exp) {
         res = const_node(exp->value);
         break;
     case t_variable:
-        res = var_node(exp->id);
+        res = var_node(strdup(exp->id));
         break;
     default:
         res = node_of_size(exp->tag, exp->n_child);
@@ -117,28 +91,26 @@ static void sort_tree(struct expr *exp) {
     }
 }
 
-struct expr *derive_tree(struct expr *exp, const char *var, bool optimize) {
-    static bool nested = 0;
-    bool cnested = nested;
-    nested = 1;
-
+struct expr *derive_tree(struct expr *exp, const char *var) {
     struct expr *res = exp;
     switch (exp->tag) {
     case t_constant:
-        free(exp);
         res = const_node(0);
+        free(exp);
+        break;
+    case t_variable:
+        res = const_node(!strcmp(var, exp->id));
+        free_tree(exp);
         break;
     case t_log: {
         res = node(t_multiply, 2,
-                   derive_tree(exp->children[0], var, optimize),
-                   node(t_inverse, 1,
-                        deep_copy(exp->children[0])));
+                   derive_tree(deep_copy(exp->children[0]), var),
+                   node(t_inverse, 1, exp->children[0]));
         free(exp);
-        break;
-    }
-    case t_variable: {
-        res = const_node(!strcmp(var, exp->id));
-        free_tree(exp);
+        if (!res->children[0]) {
+            free_tree(res);
+            return NULL;
+        }
         break;
     }
     case t_power:
@@ -159,11 +131,15 @@ struct expr *derive_tree(struct expr *exp, const char *var, bool optimize) {
                             node(t_multiply, 2,
                                  node(t_log, 1,
                                       deep_copy(exp->children[0])),
-                                 derive_tree(deep_copy(exp->children[1]), var, optimize)),
+                                 derive_tree(deep_copy(exp->children[1]), var)),
                             node(t_multiply, 2,
                                  deep_copy(exp->children[1]),
-                                 derive_tree(node(t_log, 1,
-                                                    deep_copy(exp->children[0])), var, optimize))));
+                                 derive_tree(node(t_log, 1, deep_copy(exp->children[0])), var))));
+            if (!res->children[1]->children[0]->children[1] ||
+                !res->children[1]->children[1]->children[1]) {
+                free_tree(res);
+                return NULL;
+            }
         }
         break;
     case t_multiply: {
@@ -172,7 +148,12 @@ struct expr *derive_tree(struct expr *exp, const char *var, bool optimize) {
             res->children[i] = node_of_size(t_multiply, exp->n_child);
             for (size_t j = 0; j < exp->n_child; j++) {
                 res->children[i]->children[j] = (i != j) ? deep_copy(exp->children[j]):
-                    derive_tree(deep_copy(exp->children[j]), var, optimize);
+                    derive_tree(deep_copy(exp->children[j]), var);
+                if (!res->children[i]->children[j]) {
+                    free_tree(res);
+                    free_tree(exp);
+                    return NULL;
+                }
             }
         }
         free_tree(exp);
@@ -180,33 +161,32 @@ struct expr *derive_tree(struct expr *exp, const char *var, bool optimize) {
     }
     case t_inverse: {
         res = node(t_multiply, 2,
-                   derive_tree(exp->children[0], var, optimize),
+                   derive_tree(deep_copy(exp->children[0]), var),
                    node(t_inverse, 1,
                         node (t_negate, 1,
                               node(t_power, 2,
-                                   deep_copy(exp->children[0]),
+                                   exp->children[0],
                                    const_node(2)))));
         free(exp);
+        if (!res->children[0]) {
+            free_tree(res);
+            return NULL;
+        }
         break;
     }
     case t_add:
     case t_negate:
         for (size_t i = 0; i < exp->n_child; i++)
-            exp->children[i] = derive_tree(exp->children[i], var, optimize);
+            exp->children[i] = derive_tree(exp->children[i], var);
         break;
     default:
         /* All other nodes cannot be differentiated */
-        assert(0);
+        free_tree(exp);
+        return NULL;
     }
 
-    if (tfile) dump_tree(tfile, tfmt, res, !optimize);
     if (optimize) res = optimize_tree(res);
 
-    nested = cnested;
-
-    if (tfile && !nested && tfmt == fmt_tex) {
-        fputs("\\bye\n", tfile);
-    }
     return res;
 
 }
@@ -576,19 +556,20 @@ inline static void push_node(struct expr *exp, enum tag tag) {
 
 // Fold same operations and push unary down to the tree
 static struct expr *fold_ops(struct expr *exp) {
-    if (exp->tag != t_constant && exp->tag != t_variable) {
+    if (has_childern(exp)) {
         // Recursively fold children first
-        for (size_t i = 0; i < exp->n_child; i++)
+        for (size_t i = 0; i < exp->n_child; i++) {
             exp->children[i] = fold_ops(exp->children[i]);
+        }
     }
 
     struct expr *res = exp;
     enum tag tag = exp->tag;
+    bool negate = 0;
 
     switch (tag) {
     case t_multiply: {
         // Factor out negations
-        bool negate = 0;
         for (size_t i = 0; i < exp->n_child; i++) {
             assert(exp->children[i]);
             if (exp->children[i]->tag == t_negate) {
@@ -604,7 +585,6 @@ static struct expr *fold_ops(struct expr *exp) {
                 negate ^= 1;
             }
         }
-        if (negate) res = node(t_negate, 1, exp);
     }
         // fallthrough
     case t_add:
@@ -626,6 +606,7 @@ static struct expr *fold_ops(struct expr *exp) {
             assert(k <= ntotal);
         }
         free(exp);
+        if (negate) res = node(t_negate, 1, res);
         break;
     }
     default: break;
@@ -635,7 +616,7 @@ static struct expr *fold_ops(struct expr *exp) {
 }
 
 static struct expr *push_ops(struct expr *exp) {
-    if (exp->tag != t_constant && exp->tag != t_variable) {
+    if (has_childern(exp)) {
         // Recursively fold children first
         for (size_t i = 0; i < exp->n_child; i++)
             exp->children[i] = push_ops(exp->children[i]);

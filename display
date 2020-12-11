@@ -6,14 +6,6 @@ format=$1
 file=$(mktemp /tmp/tmpXXXXX.$format)
 flags=
 
-if [ "${format#derive-*-}" != "$format" ];
-then
-    format=${format#derive-}
-    flags="$flags -d${format%%-*}"
-    format=${format#*-}
-fi
-
-
 if [ "${format#optimize-}" != "$format" ];
 then
     format=${format#optimize-}

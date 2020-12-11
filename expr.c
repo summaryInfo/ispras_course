@@ -18,18 +18,19 @@
  * E9 := E9 "&&" E8 | E8
  * E8 := E7 |  "!" E8
  * E7 := E6 "==" E7 | E6 "!=" E7 | E6
- * E6 := E5 ">" E6 | E5 "<" E6 | E5 "<=" E5 | E5 ">=" E6 | E5
- * E5 := "log" E5 | E4
+ * E6 := E4 ">" E6 | E4 "<" E6 | E4 "<=" E4 | E4 ">=" E6 | E4
  * E4 := E4 "+" E3 | E4 "-" E3 | E3
  * E3 := E3 "*" E2 | E3 "/" E2 | E2
  * E2 := E1 "^" E2 | E1
  * E1 := "+" E1 | "-" E1 | E0
- * E0 := VAR | NUM | "(" E12 ")"
+ * E0 := VAR ("'" VAR) | NUM ("'" VAR) | "(" E12 ")" ("'" VAR) | "log" E0 ("'" E0)
  * NUM := <c double constant>
  * LETTER = "a" | ... | "z" | "A" | ... | "Z"
  * VAR := LETTER VAR | LETTER
  *
  */
+
+bool optimize;
 
 struct tag_info tags[] = {
     [t_constant] = {NULL, NULL, 0, 0},
@@ -159,55 +160,47 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
     return (*node = tmp);
 }
 
+inline static char *expect_id(struct state *st) {
+    size_t cap = 0, size = 0;
+    char *str = NULL;
+    for (char ch; (ch = peek(st)) && isalpha(ch);) {
+        if (size + 1 >= cap) {
+            char *tmp = realloc(str, cap = LIT_CAP_STEP(cap));
+            assert(tmp);
+            str = tmp;
+        }
+        str[size++] = get(st);
+    }
+    if (size) str[size] = 0;
+    else set_fail(st, "<id>");
+    return str;
+}
+
 static struct expr *exp_13(struct state *st);
 
-static struct expr *exp_0(struct state *st) /* const, var, (), log */ {
+static struct expr *exp_0(struct state *st) /* const, var, (), log ' */ {
+    struct expr *res = NULL;
     if (expect(st, tags[t_log].name)) {
-        struct expr *node = NULL;
-        append_child(st, &node, t_log, exp_0(st), NULL);
-        return node;
+        res = node(t_log, 1, exp_0(st));
     } else if (expect(st, "(")) {;
-        struct expr *node = exp_13(st);
+        res = exp_13(st);
         st->success &= expect(st, ")");
-        return node;
-    } else if (isdigit(peek_space(st))) {
-        struct expr *tmp = malloc(sizeof(*tmp));
-        if (!tmp) {
-            st->success = 0;
-            set_fail(st, NULL);
-        }
+    } else if (isdigit(peek_space(st)))
+        res = const_node(expect_number(st));
+    else if (isalpha(peek(st)))
+        res = var_node(expect_id(st));
 
-        tmp->tag = t_constant;
-        tmp->value = expect_number(st);
-        return tmp;
-    } else if (isalpha(peek(st))) {
-        size_t cap = 0, size = 0;
-        char *str = NULL;
-        for (char ch; (ch = peek(st)) && isalpha(ch);) {
-            if (size + 1 >= cap) {
-                char *tmp = realloc(str, cap = LIT_CAP_STEP(cap));
-                if (!tmp) {
-                    set_fail(st, NULL);
-                    break;
-                }
-                str = tmp;
-            }
-            str[size++] = get(st);
+    if (res) {
+        while (expect(st, "'")) {
+            char *var = expect_id(st);
+            if (!var) return NULL;
+            res = derive_tree(res, var);
+            free(var);
+            if (!res) set_fail(st, "<derivable expession>");
         }
-        str[size] = 0;
+    } else set_fail(st, "<number>' or '<variable>");
 
-        struct expr *tmp = malloc(sizeof(*tmp));
-        if (!tmp) {
-            st->success = 0;
-            st->expected = NULL;
-            return NULL;
-        }
-        tmp->tag = t_variable;
-        tmp->id = str;
-        return tmp;
-    }
-    set_fail(st, "<number>' or '<variable>");
-    return NULL;
+    return res;
 }
 
 static struct expr *exp_1(struct state *st) /* ^ */ {

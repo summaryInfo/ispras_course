@@ -5,13 +5,14 @@
 
 #include <assert.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdlib.h>
 
 #define EPS 1e-6
 
 /**
  * Check if node can have children
- * 
+ *
  * @param exp node to check
  * @return 1 if node can have children
  */
@@ -21,7 +22,7 @@ inline static bool has_childern(struct expr *exp) {
 
 /**
  * Check if node is constant
- * 
+ *
  * @param exp node to check
  * @return 1 if node is constant
  */
@@ -31,7 +32,7 @@ inline static bool is_const(struct expr *exp) {
 
 /**
  * Compare with 0
- * 
+ *
  * @param x value to compare
  * @return 1 if close to 0
  */
@@ -42,7 +43,7 @@ inline static bool is_zero(double x) {
 
 /**
  * Compare with constant
- * 
+ *
  * @param[in] exp expression to compare
  * @param[in] x constant value to compare with
  * @return 1 if exp is constant and has value x
@@ -53,7 +54,7 @@ inline static bool is_eq_const(struct expr *exp, double x) {
 
 /**
  * Create node with n children
- * 
+ *
  * @param[in] tag node type
  * @param[in] n number of children
  * @return new node
@@ -66,8 +67,50 @@ inline static struct expr *node_of_size(enum tag tag, size_t n) {
 }
 
 /**
+ * Create variable node
+ *
+ * @param[in] var variable name
+ * @return new node
+ */
+ inline static struct expr *var_node(char *var) {
+    struct expr *tmp = malloc(sizeof(*tmp));
+    assert(tmp);
+
+    tmp->id = var;
+    tmp->tag = t_variable;
+
+    return tmp;
+
+}
+
+/**
+ * Craete node with given children
+ *
+ * @param[in] tag node type
+ * @param[in] nch number of children
+ * @param[in] ... children
+ * @return new node
+ */
+inline static struct expr *node(enum tag tag, size_t nch, ...) {
+    struct expr *tmp = node_of_size(tag, nch);
+    assert(tmp);
+
+    va_list va;
+    va_start(va, nch);
+
+    for (size_t i = 0; i < nch; i++)
+        tmp->children[i] = va_arg(va, struct expr *);
+
+    va_end(va);
+
+    return tmp;
+}
+
+
+
+/**
  * Create constant node
- * 
+ *
  * @param[in] value constant
  * @return new node
  */

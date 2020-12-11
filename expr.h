@@ -100,7 +100,7 @@ void free_tree(struct expr *expr);
  * 
  * @note you cannot use original tree after calling this
  */
-struct expr *derive_tree(struct expr *exp, const char *var, bool optimize);
+struct expr *derive_tree(struct expr *exp, const char *var);
 
 /**
  * Optimize given AST
@@ -127,5 +127,7 @@ void set_trace(FILE *file, enum format fmt);
  * @param[inout] out file to output to
  */
 void generate_code(struct expr *exp, FILE *out);
+
+extern bool optimize;
 
 #endif
