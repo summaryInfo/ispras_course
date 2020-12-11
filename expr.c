@@ -50,9 +50,9 @@ struct tag_info tags[] = {
     [t_logical_and] =  {"\\land ", "&&", -1, 9},
     [t_logical_or] =  {"\\lor ", "||", -1, 10},
     [t_assign] = {":=", "=", 2, 11},
-    [t_if] = {"{\rm if}", "if", 3, 12},
-    [t_while] = {"{\rm while}", "while", 2, 12},
-    [t_statement] = {";", ";", -1, 13},
+    [t_if] = {"{\\;\rm if\\,}", "if", 3, 12},
+    [t_while] = {"{\\;\rm while\\,}", "while", 2, 12},
+    [t_statement] = {";\\,", ";", -1, 13},
 };
 
 #define LIT_CAP_STEP(x) ((x) ? 4*(x)/3 : 16)

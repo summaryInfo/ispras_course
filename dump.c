@@ -53,14 +53,15 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
     case t_while:
     case t_if:
         if (outer_prio < info->prio) fputs("\\left(", out);
-        fputs(tag == t_if ? "{\rm if}" : "{\rm while}", out);
+        fputs(tag == t_if ? "{{\\;\\bf if\\,}" : "{{\\;\\bf while\\,}", out);
         dump_tree_tex(out, expr->children[0], info->prio);
-        fputs(tag == t_if ? "{\rm then}" : "{\rm do}", out);
+        fputs(tag == t_if ? "{\\;\\bf then\\,}" : "{\\;\\bf do\\,}", out);
         dump_tree_tex(out, expr->children[1], info->prio);
-        if (tag == t_while && !is_eq_const(expr->children[2], 0)) {
-            fputs("{\rm else}", out);
+        if (tag == t_if && !is_eq_const(expr->children[2], 0)) {
+            fputs("{\\;\\bf else\\,}", out);
             dump_tree_tex(out, expr->children[2], info->prio);
         }
+        fputc('}', out);
         if (outer_prio < info->prio) fputs("\\right)", out);
         break;
     case t_multiply: {
