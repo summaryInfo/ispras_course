@@ -179,7 +179,7 @@ static void find_vars(struct expr *exp, char ***pvars, size_t *pnvars) {
     case t_variable:
         // TODO Need hashtable for this (or more precisely symbol table)
         for (size_t i = 0; i < *pnvars; i++)
-            if (!strcmp(exp->id, *pvars[i])) return;
+            if (!strcmp(exp->id, (*pvars)[i])) return;
 
         *pvars = realloc(*pvars, (1 + *pnvars)*sizeof(**pvars));
         assert(*pvars);
