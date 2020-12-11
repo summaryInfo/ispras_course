@@ -91,16 +91,16 @@ struct expr *parse_tree(const char *in);
 void free_tree(struct expr *expr);
 
 /**
- * Calculate partial derivate of the tree using variable var
+ * Calculate partial derivative of the tree using variable var
  * 
- * @param[in] exp Expression AST to derivate
+ * @param[in] exp Expression AST to derive
  * @param[in] var Derivative variable
  * @param[in] optimize If set result will be optimized
  * @return new AST
  * 
  * @note you cannot use original tree after calling this
  */
-struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize);
+struct expr *derive_tree(struct expr *exp, const char *var, bool optimize);
 
 /**
  * Optimize given AST

@@ -58,7 +58,7 @@ Using wrapper:
     ./display graph "x*y*x + --2"
     ./display string "!(123 < 1 && x / 2 >= y)"
     ./display tex "0+1+2/3^5^3 > x^(1/2)
-    ./display derivate-x-optimize-graph "log (x+1)"
+    ./display derive-x-optimize-graph "log (x+1)"
     ./display optimize-tex "1+2/3"
     ./display optimize-graph "if (2;4;5) then 6 else 7"
     ./display graph "if (2;4;5) then 6 else 7"

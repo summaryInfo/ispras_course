@@ -6,9 +6,9 @@ format=$1
 file=$(mktemp /tmp/tmpXXXXX.$format)
 flags=
 
-if [ "${format#derivate-*-}" != "$format" ];
+if [ "${format#derive-*-}" != "$format" ];
 then
-    format=${format#derivate-}
+    format=${format#derive-}
     flags="$flags -d${format%%-*}"
     format=${format#*-}
 fi

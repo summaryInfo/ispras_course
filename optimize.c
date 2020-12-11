@@ -117,7 +117,7 @@ static void sort_tree(struct expr *exp) {
     }
 }
 
-struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
+struct expr *derive_tree(struct expr *exp, const char *var, bool optimize) {
     static bool nested = 0;
     bool cnested = nested;
     nested = 1;
@@ -130,7 +130,7 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
         break;
     case t_log: {
         res = node(t_multiply, 2,
-                   derivate_tree(exp->children[0], var, optimize),
+                   derive_tree(exp->children[0], var, optimize),
                    node(t_inverse, 1,
                         deep_copy(exp->children[0])));
         free(exp);
@@ -159,10 +159,10 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
                             node(t_multiply, 2,
                                  node(t_log, 1,
                                       deep_copy(exp->children[0])),
-                                 derivate_tree(deep_copy(exp->children[1]), var, optimize)),
+                                 derive_tree(deep_copy(exp->children[1]), var, optimize)),
                             node(t_multiply, 2,
                                  deep_copy(exp->children[1]),
-                                 derivate_tree(node(t_log, 1,
+                                 derive_tree(node(t_log, 1,
                                                     deep_copy(exp->children[0])), var, optimize))));
         }
         break;
@@ -172,7 +172,7 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
             res->children[i] = node_of_size(t_multiply, exp->n_child);
             for (size_t j = 0; j < exp->n_child; j++) {
                 res->children[i]->children[j] = (i != j) ? deep_copy(exp->children[j]):
-                    derivate_tree(deep_copy(exp->children[j]), var, optimize);
+                    derive_tree(deep_copy(exp->children[j]), var, optimize);
             }
         }
         free_tree(exp);
@@ -180,7 +180,7 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
     }
     case t_inverse: {
         res = node(t_multiply, 2,
-                   derivate_tree(exp->children[0], var, optimize),
+                   derive_tree(exp->children[0], var, optimize),
                    node(t_inverse, 1,
                         node (t_negate, 1,
                               node(t_power, 2,
@@ -192,7 +192,7 @@ struct expr *derivate_tree(struct expr *exp, const char *var, bool optimize) {
     case t_add:
     case t_negate:
         for (size_t i = 0; i < exp->n_child; i++)
-            exp->children[i] = derivate_tree(exp->children[i], var, optimize);
+            exp->children[i] = derive_tree(exp->children[i], var, optimize);
         break;
     default:
         /* All other nodes cannot be differentiated */

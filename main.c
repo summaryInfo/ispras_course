@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
         set_trace(tfile ? tfile : stdout, tracefmt);
     }
 
-    if (var) exp = derivate_tree(exp, var, optimize);
+    if (var) exp = derive_tree(exp, var, optimize);
     if (optimize) exp = optimize_tree(exp);
 
     if (asmout) {
