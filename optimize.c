@@ -569,18 +569,6 @@ static struct expr *fold_constants(struct expr *exp) {
 
 static struct expr *fold_ops(struct expr *exp);
 
-inline static void push_neg_mul(struct expr *exp) {
-    if (exp->children[0]->tag == t_inverse) {
-        exp->children[0]->children[0] =
-            fold_ops(node(t_negate, 1,
-                          exp->children[0]->children[0]));
-    } else {
-        exp->children[0] =
-            fold_ops(node(t_negate, 1,
-                          exp->children[0]));
-    }
-}
-
 inline static void push_node(struct expr *exp, enum tag tag) {
     for (size_t i = 0; i < exp->n_child; i++)
         exp->children[i] = fold_ops(node(tag, 1, exp->children[i]));
@@ -616,7 +604,7 @@ static struct expr *fold_ops(struct expr *exp) {
                 negate ^= 1;
             }
         }
-        if (negate) push_neg_mul(exp);
+        if (negate) res = node(t_negate, 1, exp);
     }
         // fallthrough
     case t_add:
@@ -684,11 +672,6 @@ static struct expr *push_ops(struct expr *exp) {
         case t_negate:
             res = exp->children[0]->children[0];
             free(exp->children[0]);
-            free(exp);
-            break;
-        case t_multiply:
-            res = exp->children[0];
-            push_neg_mul(res);
             free(exp);
             break;
         case t_add:
