@@ -51,6 +51,7 @@ struct tag_info tags[] = {
     [t_logical_or] =  {"\\lor ", "||", -1, 10},
     [t_assign] = {":=", "=", 2, 11},
     [t_if] = {"{\rm if}", "if", 3, 12},
+    [t_while] = {"{\rm while}", "while", 2, 12},
     [t_statement] = {";", ";", -1, 13},
 };
 
@@ -357,16 +358,20 @@ static struct expr *exp_11(struct state *st) /* = */ {
     return node ? node : first;
 }
 
-static struct expr *exp_12(struct state *st) /* if-then-else */ {
+static struct expr *exp_12(struct state *st) /* if-then-else while-do */ {
     // conditionals are expressions
 
     if (expect(st, "if")) {
-        struct expr *first = exp_11(st), *node = NULL;
+        struct expr *first = exp_12(st), *node = NULL;
         if (expect(st, "then") &&
-                append_child(st, &node, t_if, first, exp_11(st))) {
+                append_child(st, &node, t_if, first, exp_12(st))) {
             append_child(st, &node, t_if, NULL,
-                         expect(st, "else") ? exp_11(st) : const_node(0));
+                         expect(st, "else") ? exp_12(st) : const_node(0));
         }
+        return node ? node : first;
+    } else if (expect(st, "while")) {
+        struct expr *first = exp_11(st), *node = NULL;
+        if (expect(st, "do")) append_child(st, &node, t_while, first, exp_11(st));
         return node ? node : first;
     } else return exp_11(st);
 }

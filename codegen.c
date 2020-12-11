@@ -147,6 +147,21 @@ static void do_codegen(struct expr *exp, FILE *out) {
         fprintf(out, "L%zu:\n", lend);
         break;
     }
+    case t_while: {
+        size_t lnext = label_n++, lend = label_n++;
+        fprintf(out, "\tld.d $0\n"
+                     "L%zu:\n", lnext);
+        do_codegen(exp->children[0], out);
+        fprintf(out, "\tcall.d abs_d\n"
+                     "\tld.d $%lf\n"
+                     "\tjl.d L%zu\n", EPS, lend);
+        do_codegen(exp->children[1], out);
+        fprintf(out, "\tswap.l\n"
+                     "\tdrop.l\n"
+                     "\tjmp L%zu\n"
+                     "L%zu:\n", lnext, lend);
+        break;
+    }
     case t_statement:
         for (size_t i = 0; i < exp->n_child - 1; i++) {
             do_codegen(exp->children[i], out);

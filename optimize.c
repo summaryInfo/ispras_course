@@ -105,6 +105,7 @@ static void sort_tree(struct expr *exp) {
             //fallthrough
         case t_power:
         case t_if:
+        case t_while:
         case t_logical_and:
         case t_logical_or:
         case t_statement:
@@ -550,7 +551,14 @@ static struct expr *fold_constants(struct expr *exp) {
             res = realloc(exp, sizeof(*exp) + newn*sizeof(exp));
             assert(res);
         }
+        break;
     }
+    case t_while:
+        if (is_eq_const(exp->children[0], 0)) {
+            res = const_node(0);
+            free_tree(exp);
+        }
+        break;
     case t_assign:;
         // TODO Dead assignments?
         break;

@@ -50,6 +50,7 @@ Generate PNG file:
 Compile to assembly:
 
     ./parse -ct.xs "if 1 > 2 then x else log4/log2"
+    ./parse -cg.xs "x=0;while x < 25 do x = x + 1;x^0.5"
 
 Using wrapper:
 

@@ -32,6 +32,7 @@ enum tag {
     t_logical_or,
     t_logical_not,
     t_if,
+    t_while,
     t_statement,
     t_assign,
     t_MAX = t_assign,
