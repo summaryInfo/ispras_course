@@ -62,6 +62,7 @@ Using wrapper:
     ./display optimize-tex "1+2/3"
     ./display optimize-graph "if (2;4;5) then 6 else 7"
     ./display graph "if (2;4;5) then 6 else 7"
+    ./display tex "if 1 then 2 else while x do y;x+1"
 
 ## Notes
 
