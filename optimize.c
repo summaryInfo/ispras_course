@@ -510,7 +510,7 @@ static struct expr *fold_constants(struct expr *exp) {
     case t_logical_not:
         if (is_const(exp->children[0])) {
             res = exp->children[0];
-            res->value = !is_zero(res->value);
+            res->value = is_zero(res->value);
             free(exp);
         }
         break;
@@ -627,11 +627,13 @@ static struct expr *push_ops(struct expr *exp) {
 
     switch (tag) {
     case t_add:
+    case t_logical_or:
         if (!exp->n_child) {
             free(exp);
             res = const_node(0);
         }
         break;
+    case t_logical_and:
     case t_multiply:
         if (!exp->n_child) {
             free(exp);
