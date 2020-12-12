@@ -77,6 +77,7 @@ inline static struct expr *node_of_size(enum tag tag, size_t n) {
     assert(tmp);
 
     tmp->id = var;
+    tmp->n_child = 0;
     tmp->tag = t_variable;
 
     return tmp;
@@ -106,6 +107,24 @@ inline static struct expr *node(enum tag tag, size_t nch, ...) {
     return tmp;
 }
 
+inline static struct expr *func_node(char *id, size_t nch, ...) {
+    struct expr *tmp = node_of_size(t_function, nch);
+    assert(tmp);
+
+    tmp->id = id;
+
+    va_list va;
+    va_start(va, nch);
+
+    for (size_t i = 0; i < nch; i++)
+        tmp->children[i] = va_arg(va, struct expr *);
+
+    va_end(va);
+
+    return tmp;
+
+}
+
 
 
 /**
@@ -119,6 +138,7 @@ inline static struct expr *const_node(double value) {
     assert(tmp);
 
     tmp->value = value;
+    tmp->n_child = 0;
     tmp->tag = t_constant;
 
     return tmp;

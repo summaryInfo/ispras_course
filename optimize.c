@@ -102,17 +102,22 @@ struct expr *derive_tree(struct expr *exp, const char *var) {
         res = const_node(!strcmp(var, exp->id));
         free_tree(exp);
         break;
-    case t_log: {
-        res = node(t_multiply, 2,
-                   derive_tree(deep_copy(exp->children[0]), var),
-                   node(t_inverse, 1, exp->children[0]));
-        free(exp);
-        if (!res->children[0]) {
+    case t_function:
+        if (!strcmp(exp->id, "log")) {
+            res = node(t_multiply, 2,
+                       derive_tree(deep_copy(exp->children[0]), var),
+                       node(t_inverse, 1, exp->children[0]));
+            free(exp);
+            if (!res->children[0]) {
+                free_tree(res);
+                return NULL;
+            }
+        } else {
+            // TODO
             free_tree(res);
             return NULL;
         }
         break;
-    }
     case t_power:
         // For power first handle special cases
         if (is_const(exp->children[0])) {
@@ -129,12 +134,12 @@ struct expr *derive_tree(struct expr *exp, const char *var) {
                        exp,
                        node(t_add, 2,
                             node(t_multiply, 2,
-                                 node(t_log, 1,
+                                 func_node(strdup("log"), 1,
                                       deep_copy(exp->children[0])),
                                  derive_tree(deep_copy(exp->children[1]), var)),
                             node(t_multiply, 2,
                                  deep_copy(exp->children[1]),
-                                 derive_tree(node(t_log, 1, deep_copy(exp->children[0])), var))));
+                                 derive_tree(func_node(strdup("log"), 1, deep_copy(exp->children[0])), var))));
             if (!res->children[1]->children[0]->children[1] ||
                 !res->children[1]->children[1]->children[1]) {
                 free_tree(res);
@@ -363,11 +368,12 @@ static struct expr *fold_constants(struct expr *exp) {
             free(exp);
         }
         break;
-    case t_log:
-        assert(exp->n_child == 1);
-        if (is_const(exp->children[0])) {
-            res = const_node(log(exp->children[0]->value));
-            free_tree(exp);
+    case t_function:
+        if (!strcmp(exp->id, "log")) {
+            if (is_const(exp->children[0])) {
+                res = const_node(log(exp->children[0]->value));
+                free_tree(exp);
+            }
         }
         break;
     case t_power:

@@ -17,7 +17,6 @@ enum tag {
     t_constant = 1,
     t_variable,
     t_power,
-    t_log,
     t_negate,
     t_inverse,
     t_add,
@@ -35,7 +34,8 @@ enum tag {
     t_while,
     t_statement,
     t_assign,
-    t_MAX = t_assign,
+    t_function,
+    t_MAX = t_function,
 };
 
 /**
@@ -44,15 +44,14 @@ enum tag {
 struct expr {
    enum tag tag;
    union {
-       /* only for variable */
+       /* only for variable or function */
        char *id;
        /* only for constant value */
        double value;
-       /* for all other nodes
-        * children are stored
-        * in flexible array member */
-       size_t n_child;
    };
+   /* children are stored
+    * in flexible array member */
+   size_t n_child;
    struct expr *children[];
 };
 

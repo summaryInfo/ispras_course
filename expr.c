@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO functions
+//   sin cos log -- derivable
 
 /*
  * A grammar corresponding to the parser:
@@ -23,7 +25,8 @@
  * E3 := E3 "*" E2 | E3 "/" E2 | E2
  * E2 := E1 "^" E2 | E1
  * E1 := "+" E1 | "-" E1 | E0
- * E0 := VAR ("'" VAR) | NUM ("'" VAR) | "(" E12 ")" ("'" VAR) | "log" E0 ("'" E0)
+ * E0 := VAR ("'" VAR) | NUM ("'" VAR) | "(" E12 ")" ("'" VAR) | VAR ARGLIST ("'" E0)
+ * ARGLIST := E12 ("," E12)
  * NUM := <c double constant>
  * LETTER = "a" | ... | "z" | "A" | ... | "Z"
  * VAR := LETTER VAR | LETTER
@@ -35,7 +38,7 @@ bool optimize;
 struct tag_info tags[] = {
     [t_constant] = {NULL, NULL, 0, 0},
     [t_variable] = {NULL, NULL, 0, 0},
-    [t_log] =  {"\\log ", "log", 1, 0},
+    [t_function] = {NULL, "function", -1, 0},
     [t_power] = {"^", "^", 2, 1},
     [t_negate] =  {"-", "-", 1, 2},
     [t_inverse] =  {NULL, "1/", 1, 3},
@@ -163,7 +166,7 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
 inline static char *expect_id(struct state *st) {
     size_t cap = 0, size = 0;
     char *str = NULL;
-    for (char ch; (ch = peek(st)) && isalpha(ch);) {
+    for (char ch; (ch = peek(st)) && (isalpha(ch) || ch == '_');) {
         if (size + 1 >= cap) {
             char *tmp = realloc(str, cap = LIT_CAP_STEP(cap));
             assert(tmp);
@@ -177,18 +180,24 @@ inline static char *expect_id(struct state *st) {
 }
 
 static struct expr *exp_13(struct state *st);
+static struct expr *exp_12(struct state *st);
 
 static struct expr *exp_0(struct state *st) /* const, var, (), log ' */ {
     struct expr *res = NULL;
-    if (expect(st, tags[t_log].name)) {
-        res = node(t_log, 1, exp_0(st));
-    } else if (expect(st, "(")) {;
+    if (expect(st, "(")) {;
         res = exp_13(st);
         st->success &= expect(st, ")");
     } else if (isdigit(peek_space(st)))
         res = const_node(expect_number(st));
-    else if (isalpha(peek(st)))
+    else if (isalpha(peek(st))) {
         res = var_node(expect_id(st));
+        if (expect(st, "(") ) {
+            res->tag = t_function;
+            do append_child(st, &res, t_function, NULL, exp_13(st));
+            while (expect(st, ","));
+            st->success &= expect(st, ")");
+        }
+    }
 
     if (res) {
         while (expect(st, "'")) {
@@ -383,8 +392,8 @@ static struct expr *exp_13(struct state *st) /* ; */ {
 void free_tree(struct expr *expr) {
     if (!expr) return;
 
-    if (expr->tag == t_variable) free(expr->id);
-    else if (expr->tag != t_constant) {
+    if (expr->tag != t_constant) {
+        free(expr->id);
         for (size_t i = 0; i < expr->n_child; i++)
             free_tree(expr->children[i]);
     }

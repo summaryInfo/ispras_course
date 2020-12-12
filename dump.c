@@ -8,18 +8,19 @@ static int dump_tree_graph(FILE *out, struct expr *expr, int index) {
 
     enum tag tag = expr->tag;
     struct tag_info *info = &tags[tag];
+    struct expr **it = expr->children;
+
+    assert((tags[tag].arity < 0 && expr->n_child > 0) || (size_t)tags[tag].arity == expr->n_child);
 
     if (tag == t_constant) {
         fprintf(out, "\tn%d[label=\"const %lg\", shape=box, fillcolor=lightgrey, style=filled];\n", index, expr->value);
     } else if (tag == t_variable) {
-        fprintf(out, "\tn%d[label=\"var %s\", shape=box];\n", index, expr->id);
+        fprintf(out, "\tn%d[label=\"var '%s'\", shape=box];\n", index, expr->id);
     } else {
-        assert((tags[tag].arity < 0 && expr->n_child > 0) || (size_t)tags[tag].arity == expr->n_child);
-
-        struct expr **it = expr->children;
         int node_index = index++, next_index;
 
-        fprintf(out, "\tn%d[label=\"%s\", shape=triangle, color=lightblue, style=filled];\n", node_index, info->name ? info->name : info->alt);
+        if (tag != t_function) fprintf(out, "\tn%d[label=\"%s\", shape=triangle, color=lightblue, style=filled];\n", node_index, info->name ? info->name : info->alt);
+        else fprintf(out, "\tn%d[label=\"function '%s'\", shape=triangle, color=lightgrey, style=filled];\n", index, expr->id);
 
         do {
             next_index = dump_tree_graph(out, *it++, index);
@@ -49,6 +50,15 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
     case t_variable:
         assert(expr->id);
         fputs(expr->id, out);
+        break;
+    case t_function:
+        fprintf(out, "{{\\bf %s}\\left(", expr->id);
+        if (expr->n_child) dump_tree_tex(out, expr->children[0], MAX_PRIO);
+        for (size_t i = 1; i < expr->n_child; i++) {
+            fputs(",\\,", out);
+            dump_tree_tex(out, expr->children[i], MAX_PRIO);
+        }
+        fputs("\\right)}", out);
         break;
     case t_while:
     case t_if:
@@ -153,6 +163,14 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
     } else if (tag == t_variable) {;
         assert(expr->id);
         fputs(expr->id, out);
+    } else if (tag == t_function) {
+        fprintf(out, "%s(", expr->id);
+        if (expr->n_child) dump_tree_string(out, expr->children[0], MAX_PRIO);
+        for (size_t i = 1; i < expr->n_child; i++) {
+            fputs(", ", out);
+            dump_tree_string(out, expr->children[i], MAX_PRIO);
+        }
+        fputc(')', out);
     } else if (tag == t_if || tag == t_while) {
         if (outer_prio < info->prio) fputc('(', out);
         fputs(tag == t_if ? "if " : "while ", out);

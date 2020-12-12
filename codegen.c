@@ -24,9 +24,9 @@ static void do_codegen(struct expr *exp, FILE *out) {
         do_codegen(exp->children[1], out);
         fputs("\tcall.d power_d\n", out);
         break;
-    case t_log:
+    case t_function:
         do_codegen(exp->children[0], out);
-        fputs("\tcall.d log_d\n", out);
+        fprintf(out, "\tcall.d %s\n", exp->id);
         break;
     case t_negate:
         do_codegen(exp->children[0], out);
