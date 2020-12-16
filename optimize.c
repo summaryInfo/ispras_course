@@ -2,6 +2,7 @@
 
 #include "expr.h"
 #include "expr-impl.h"
+#include "strtab.h"
 
 #include <assert.h>
 #include <math.h>
@@ -20,13 +21,14 @@ inline static struct expr *deep_copy(struct expr *exp) {
         res = const_node(exp->value);
         break;
     case t_variable:
-        res = var_node(strdup(exp->id));
+        res = var_node(exp->id);
         break;
     default:
         res = node_of_size(exp->tag, exp->n_child);
         for (size_t i = 0; i < exp->n_child; i++)
             res->children[i] = deep_copy(exp->children[i]);
     }
+    res->id = exp->id;
     return res;
 }
 
@@ -38,7 +40,10 @@ static int cmp_tree_rec(const struct expr *aexp, const struct expr *bexp) {
         return aexp->value < bexp->value ? -1 :
                aexp->value > bexp->value;
     case t_variable:
-        return strcmp(aexp->id, bexp->id);
+        return aexp->id - bexp->id;
+    case t_function:
+        if (aexp->id != bexp->id) return aexp->id - bexp->id;
+        // fallthrough
     default:
         if (aexp->n_child != bexp->n_child)
             return (ssize_t)aexp->n_child - bexp->n_child;
@@ -77,21 +82,18 @@ static void sort_tree(struct expr *exp) {
                 }[exp->tag];
             }
             //fallthrough
-        case t_power:
-        case t_if:
-        case t_while:
+        default:
+            break;
         case t_logical_and:
         case t_logical_or:
-        case t_statement:
-        case t_assign:
-            break;
-        default:
+        case t_add:
+        case t_multiply:
             qsort(exp->children, exp->n_child, sizeof(exp), cmp_tree);
         }
     }
 }
 
-struct expr *derive_tree(struct expr *exp, const char *var) {
+struct expr *derive_tree(struct expr *exp, struct strtab *stab, id_t var) {
     struct expr *res = exp;
     switch (exp->tag) {
     case t_constant:
@@ -99,13 +101,13 @@ struct expr *derive_tree(struct expr *exp, const char *var) {
         free(exp);
         break;
     case t_variable:
-        res = const_node(!strcmp(var, exp->id));
+        res = const_node(var == exp->id);
         free_tree(exp);
         break;
     case t_function:
-        if (!strcmp(exp->id, "log")) {
+        if (exp->id == log_) {
             res = node(t_multiply, 2,
-                       derive_tree(deep_copy(exp->children[0]), var),
+                       derive_tree(deep_copy(exp->children[0]), stab, var),
                        node(t_inverse, 1, exp->children[0]));
             free(exp);
             if (!res->children[0]) {
@@ -121,25 +123,28 @@ struct expr *derive_tree(struct expr *exp, const char *var) {
     case t_power:
         // For power first handle special cases
         if (is_const(exp->children[0])) {
-            res = node(t_multiply, 2,
+            struct expr *tmp = deep_copy(exp->children[1]);
+            res = node(t_multiply, 3,
                        exp,
+                       derive_tree(tmp, stab, var),
                        const_node(log(exp->children[0]->value)));
         } else if (is_const(exp->children[1])) {
+            struct expr *tmp = deep_copy(exp->children[0]);
             res = const_node(exp->children[1]->value);
             exp->children[1]->value -= 1;
-            res = node(t_multiply, 2, res, exp);
+            res = node(t_multiply, 3, res, exp, derive_tree(tmp, stab, var));
         } else {
             // Oof... thats complex
             res = node(t_multiply, 2,
                        exp,
                        node(t_add, 2,
                             node(t_multiply, 2,
-                                 func_node(strdup("log"), 1,
+                                 func_node(log_, 1,
                                       deep_copy(exp->children[0])),
-                                 derive_tree(deep_copy(exp->children[1]), var)),
+                                 derive_tree(deep_copy(exp->children[1]), stab, var)),
                             node(t_multiply, 2,
                                  deep_copy(exp->children[1]),
-                                 derive_tree(func_node(strdup("log"), 1, deep_copy(exp->children[0])), var))));
+                                 derive_tree(func_node(log_, 1, deep_copy(exp->children[0])), stab, var))));
             if (!res->children[1]->children[0]->children[1] ||
                 !res->children[1]->children[1]->children[1]) {
                 free_tree(res);
@@ -153,7 +158,7 @@ struct expr *derive_tree(struct expr *exp, const char *var) {
             res->children[i] = node_of_size(t_multiply, exp->n_child);
             for (size_t j = 0; j < exp->n_child; j++) {
                 res->children[i]->children[j] = (i != j) ? deep_copy(exp->children[j]):
-                    derive_tree(deep_copy(exp->children[j]), var);
+                    derive_tree(deep_copy(exp->children[j]), stab, var);
                 if (!res->children[i]->children[j]) {
                     free_tree(res);
                     free_tree(exp);
@@ -166,7 +171,7 @@ struct expr *derive_tree(struct expr *exp, const char *var) {
     }
     case t_inverse: {
         res = node(t_multiply, 2,
-                   derive_tree(deep_copy(exp->children[0]), var),
+                   derive_tree(deep_copy(exp->children[0]), stab, var),
                    node(t_inverse, 1,
                         node (t_negate, 1,
                               node(t_power, 2,
@@ -182,7 +187,7 @@ struct expr *derive_tree(struct expr *exp, const char *var) {
     case t_add:
     case t_negate:
         for (size_t i = 0; i < exp->n_child; i++)
-            exp->children[i] = derive_tree(exp->children[i], var);
+            exp->children[i] = derive_tree(exp->children[i], stab, var);
         break;
     default:
         /* All other nodes cannot be differentiated */
@@ -190,7 +195,7 @@ struct expr *derive_tree(struct expr *exp, const char *var) {
         return NULL;
     }
 
-    if (optimize) res = optimize_tree(res);
+    if (optimize) res = optimize_tree(res, stab);
 
     return res;
 
@@ -369,7 +374,7 @@ static struct expr *fold_constants(struct expr *exp) {
         }
         break;
     case t_function:
-        if (!strcmp(exp->id, "log")) {
+        if (exp->id == log_) {
             if (is_const(exp->children[0])) {
                 res = const_node(log(exp->children[0]->value));
                 free_tree(exp);
@@ -707,30 +712,30 @@ static struct expr *push_ops(struct expr *exp) {
 
 #define MAX_OPT 10
 
-struct expr *optimize_tree(struct expr *exp) {
+struct expr *optimize_tree(struct expr *exp, struct strtab *stab) {
     for (size_t i = 0; i < MAX_OPT; i++) {
         if (tfile && tfmt != fmt_graph) {
             fputs("\nFolding operations; tree\n", tfile);
-            dump_tree(tfile, tfmt, exp, 0);
+            dump_tree(tfile, tfmt, exp, stab, 0);
             fputs("Becomes\n", tfile);
         }
         exp = fold_ops(exp);
-        if (tfile) dump_tree(tfile, tfmt, exp, 0);
+        if (tfile) dump_tree(tfile, tfmt, exp, stab, 0);
         if (tfile && tfmt != fmt_graph) {
             fputs("\nFolding constants; tree\n", tfile);
-            dump_tree(tfile, tfmt, exp, 0);
+            dump_tree(tfile, tfmt, exp, stab, 0);
             fputs("Becomes\n", tfile);
         }
         exp = fold_constants(exp);
-        if (tfile) dump_tree(tfile, tfmt, exp, 0);
+        if (tfile) dump_tree(tfile, tfmt, exp, stab, 0);
         if (tfile && tfmt != fmt_graph) {
             fputs("\nEliminating common; tree\n", tfile);
-            dump_tree(tfile, tfmt, exp, 0);
+            dump_tree(tfile, tfmt, exp, stab, 0);
             fputs("Becomes\n", tfile);
         }
         sort_tree(exp);
         exp = eliminate_common(exp);
-        if (tfile) dump_tree(tfile, tfmt, exp, 0);
+        if (tfile) dump_tree(tfile, tfmt, exp, stab, 0);
         exp = push_ops(exp);
     }
     return exp;

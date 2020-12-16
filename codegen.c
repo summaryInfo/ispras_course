@@ -1,9 +1,10 @@
 #include "expr-impl.h"
+#include "strtab.h"
 
 #include <stdio.h>
 #include <string.h>
 
-static void do_codegen(struct expr *exp, FILE *out) {
+static void do_codegen(struct expr *exp, struct strtab *stab, FILE *out) {
     // Well all this code generation is *very* inefficient
     // due to the lack of proper types (doubles are used for conditionals)
     // and the fact that the only comparison operations for doubles are < and >
@@ -17,50 +18,50 @@ static void do_codegen(struct expr *exp, FILE *out) {
         fprintf(out, "\tld.d $%lf\n", exp->value);
         break;
     case t_variable:
-        fprintf(out, "\tld.d %s\n", exp->id);
+        fprintf(out, "\tld.d %s\n", string_of(stab, exp->id));
         break;
     case t_power:
-        do_codegen(exp->children[0], out);
-        do_codegen(exp->children[1], out);
+        do_codegen(exp->children[0], stab, out);
+        do_codegen(exp->children[1], stab, out);
         fputs("\tcall.d power_d\n", out);
         break;
     case t_function:
-        do_codegen(exp->children[0], out);
-        fprintf(out, "\tcall.d %s\n", exp->id);
+        do_codegen(exp->children[0], stab, out);
+        fprintf(out, "\tcall.d %s_d\n", string_of(stab, exp->id));
         break;
     case t_negate:
-        do_codegen(exp->children[0], out);
+        do_codegen(exp->children[0], stab, out);
         fputs("\tneg.d\n", out);
         break;
     case t_assign:
-        do_codegen(exp->children[1], out);
+        do_codegen(exp->children[1], stab, out);
         assert(exp->children[0]->tag == t_variable);
         fprintf(out, "\tdup.l\n"
-                     "\tst.d %s\n", exp->children[0]->id);
+                     "\tst.d %s\n", string_of(stab, exp->children[0]->id));
         break;
     case t_inverse:
         assert(0);
         break;
     case t_add:
-        do_codegen(exp->children[0], out);
+        do_codegen(exp->children[0], stab, out);
         for (size_t i = 1; i < exp->n_child; i++) {
             if (exp->children[i]->tag == t_negate) {
-                do_codegen(exp->children[i]->children[0], out);
+                do_codegen(exp->children[i]->children[0], stab, out);
                 fputs("\tsub.d\n", out);
             } else {
-                do_codegen(exp->children[i], out);
+                do_codegen(exp->children[i], stab, out);
                 fputs("\tadd.d\n", out);
             }
         }
         break;
     case t_multiply:
-        do_codegen(exp->children[0], out);
+        do_codegen(exp->children[0], stab, out);
         for (size_t i = 1; i < exp->n_child; i++) {
             if (exp->children[i]->tag == t_inverse) {
-                do_codegen(exp->children[i]->children[0], out);
+                do_codegen(exp->children[i]->children[0], stab, out);
                 fputs("\tdiv.d\n", out);
             } else {
-                do_codegen(exp->children[i], out);
+                do_codegen(exp->children[i], stab, out);
                 fputs("\tmul.d\n", out);
             }
         }
@@ -73,8 +74,8 @@ static void do_codegen(struct expr *exp, FILE *out) {
     case t_notequal:
     case t_logical_not: {
         size_t l1 = label_n++, l2 = label_n++;
-        do_codegen(exp->children[0], out);
-        if (tag != t_logical_not) do_codegen(exp->children[1], out);
+        do_codegen(exp->children[0], stab, out);
+        if (tag != t_logical_not) do_codegen(exp->children[1], stab, out);
         switch (tag) {
         case t_less:
             fprintf(out, "\tjl.d L%zu\n", l1);
@@ -119,12 +120,12 @@ static void do_codegen(struct expr *exp, FILE *out) {
     case t_logical_and:
     case t_logical_or: {
         size_t lend = label_n++, lend2 = label_n++;
-        do_codegen(exp->children[0], out);
+        do_codegen(exp->children[0], stab, out);
         for (size_t i = 1; i < exp->n_child; i++) {
             fprintf(out, "\tcall.d abs_d\n"
                          "\tld.d $%lf\n"
                          "\tj%c.d L%zu\n", EPS, tag == t_logical_or ? 'g' : 'l', lend);
-            do_codegen(exp->children[0], out);
+            do_codegen(exp->children[0], stab, out);
         }
         if (exp->n_child > 1) {
             fprintf(out, "\tjmp L%zu\n"
@@ -136,14 +137,14 @@ static void do_codegen(struct expr *exp, FILE *out) {
     }
     case t_if: {
         size_t lend = label_n++, lelse = label_n++;
-        do_codegen(exp->children[0], out);
+        do_codegen(exp->children[0], stab, out);
         fprintf(out, "\tcall.d abs_d\n");
         fprintf(out, "\tld.d $%lf\n"
                      "\tjl.d L%zu\n", EPS, lelse);
-        do_codegen(exp->children[1], out);
+        do_codegen(exp->children[1], stab, out);
         fprintf(out, "\tjmp L%zu\n"
                      "L%zu:\n", lend, lelse);
-        do_codegen(exp->children[2], out);
+        do_codegen(exp->children[2], stab, out);
         fprintf(out, "L%zu:\n", lend);
         break;
     }
@@ -151,11 +152,11 @@ static void do_codegen(struct expr *exp, FILE *out) {
         size_t lnext = label_n++, lend = label_n++;
         fprintf(out, "\tld.d $0\n"
                      "L%zu:\n", lnext);
-        do_codegen(exp->children[0], out);
+        do_codegen(exp->children[0], stab, out);
         fprintf(out, "\tcall.d abs_d\n"
                      "\tld.d $%lf\n"
                      "\tjl.d L%zu\n", EPS, lend);
-        do_codegen(exp->children[1], out);
+        do_codegen(exp->children[1], stab, out);
         fprintf(out, "\tswap.l\n"
                      "\tdrop.l\n"
                      "\tjmp L%zu\n"
@@ -164,22 +165,22 @@ static void do_codegen(struct expr *exp, FILE *out) {
     }
     case t_statement:
         for (size_t i = 0; i < exp->n_child - 1; i++) {
-            do_codegen(exp->children[i], out);
+            do_codegen(exp->children[i], stab, out);
             fputs("\tdrop.l\n", out);
         }
-        do_codegen(exp->children[exp->n_child - 1], out);
+        do_codegen(exp->children[exp->n_child - 1], stab, out);
     }
 }
 
 
-static void find_vars(struct expr *exp, char ***pvars, size_t *pnvars) {
+static void find_vars(struct expr *exp, id_t **pvars, size_t *pnvars) {
     switch(exp->tag) {
     case t_constant:
         break;
     case t_variable:
         // TODO Need hashtable for this (or more precisely symbol table)
         for (size_t i = 0; i < *pnvars; i++)
-            if (!strcmp(exp->id, (*pvars)[i])) return;
+            if (exp->id == (*pvars)[i]) return;
 
         *pvars = realloc(*pvars, (1 + *pnvars)*sizeof(**pvars));
         assert(*pvars);
@@ -192,24 +193,24 @@ static void find_vars(struct expr *exp, char ***pvars, size_t *pnvars) {
     }
 }
 
-static void generate_variables(struct expr *exp, FILE *out) {
-    char **variables = NULL;
+static void generate_variables(struct expr *exp, struct strtab *stab, FILE *out) {
+    id_t *variables = NULL;
     size_t nvars = 0;
 
     find_vars(exp, &variables, &nvars);
 
     for (size_t i = 0; i < nvars; i++)
-        fprintf(out, ".local double %s\n", variables[i]);
+        fprintf(out, ".local double %s\n", string_of(stab, variables[i]));
 
     for (size_t i = 0; i < nvars; i++) {
         fprintf(out, "\tcall.d scan_d\n"
-                     "\tst.d %s\n", variables[i]);
+                     "\tst.d %s\n", string_of(stab, variables[i]));
     }
 
     free(variables);
 }
 
-void generate_code(struct expr *exp, FILE *out) {
+void generate_code(struct expr *exp, struct strtab *stab, FILE *out) {
     // Declare runtime functions
     fputs(".function double power_d\n"
           ".param double arg\n"
@@ -234,9 +235,9 @@ void generate_code(struct expr *exp, FILE *out) {
 
     // Generate and read variables
     // (all of them are locals for now and read automatically upon startup)
-    generate_variables(exp, out);
+    generate_variables(exp, stab, out);
 
-    do_codegen(exp, out);
+    do_codegen(exp, stab, out);
     fputs("\tcall print_d\n"
           "\tret\n", out);
 }

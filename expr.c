@@ -2,6 +2,7 @@
 
 #include "expr.h"
 #include "expr-impl.h"
+#include "strtab.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -69,6 +70,7 @@ struct state {
     // Next expected token
     const char *expected;
     _Bool success;
+    struct strtab *stab;
 };
 
 inline static void set_fail(struct state *st, const char *expected) {
@@ -162,7 +164,7 @@ inline static _Bool append_child(struct state *st, struct expr **node, enum tag 
     return (*node = tmp);
 }
 
-inline static char *expect_id(struct state *st) {
+inline static id_t expect_id(struct state *st) {
     size_t cap = 0, size = 0;
     char *str = NULL;
     for (char ch; (ch = peek(st)) && (isalpha(ch) || ch == '_');) {
@@ -175,7 +177,7 @@ inline static char *expect_id(struct state *st) {
     }
     if (size) str[size] = 0;
     else set_fail(st, "<id>");
-    return str;
+    return intern(st->stab, str);
 }
 
 static struct expr *exp_13(struct state *st);
@@ -200,10 +202,9 @@ static struct expr *exp_0(struct state *st) /* const, var, (), log ' */ {
 
     if (res) {
         while (expect(st, "'")) {
-            char *var = expect_id(st);
+            id_t var = expect_id(st);
             if (!var) return NULL;
-            res = derive_tree(res, var);
-            free(var);
+            res = derive_tree(res, st->stab, var);
             if (!res) set_fail(st, "<derivable expession>");
         }
     } else set_fail(st, "<number>' or '<variable>");
@@ -392,7 +393,6 @@ void free_tree(struct expr *expr) {
     if (!expr) return;
 
     if (expr->tag != t_constant) {
-        free(expr->id);
         for (size_t i = 0; i < expr->n_child; i++)
             free_tree(expr->children[i]);
     }
@@ -400,11 +400,12 @@ void free_tree(struct expr *expr) {
     free(expr);
 }
 
-struct expr *parse_tree(const char *in) {
+struct expr *parse_tree(struct strtab *stab, const char *in) {
     struct state st = {
         .inbuf = in,
         .success = 1,
-        .last_line = in
+        .last_line = in,
+        .stab = stab,
     };
 
     struct expr *tree = exp_13(&st);

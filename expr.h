@@ -3,6 +3,11 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdint.h>
+
+
+struct strtab;
+typedef uint32_t id_t;
 
 /**
  * AST node type
@@ -45,7 +50,7 @@ struct expr {
    enum tag tag;
    union {
        /* only for variable or function */
-       char *id;
+       id_t id;
        /* only for constant value */
        double value;
    };
@@ -72,15 +77,16 @@ enum format {
  * @param[in] expr expression AST to dump
  * @param[in] full output should be a separate file
  */
-void dump_tree(FILE *out, enum format fmt, struct expr *expr, bool full);
+void dump_tree(FILE *out, enum format fmt, struct expr *expr, struct strtab *stab, bool full);
 
 /**
  * Build AST from string
  *
+ * @param[inout] stab global string table
  * @param[in] str expression string
  * @return parsed AST
  */
-struct expr *parse_tree(const char *in);
+struct expr *parse_tree(struct strtab *stab, const char *in);
 
 /**
  * Free AST
@@ -93,23 +99,25 @@ void free_tree(struct expr *expr);
  * Calculate partial derivative of the tree using variable var
  * 
  * @param[in] exp Expression AST to derive
+ * @param[in] stab Global string table
  * @param[in] var Derivative variable
  * @param[in] optimize If set result will be optimized
  * @return new AST
  * 
  * @note you cannot use original tree after calling this
  */
-struct expr *derive_tree(struct expr *exp, const char *var);
+struct expr *derive_tree(struct expr *exp, struct strtab *stab, id_t var);
 
 /**
  * Optimize given AST
  * 
  * @param[in] exp AST to optimize
+ * @praram[in] stab global string table
  * @return new AST
  * 
  * @note you cannot use original tree after calling this
  */
-struct expr *optimize_tree(struct expr *exp);
+struct expr *optimize_tree(struct expr *exp, struct strtab *stab);
 
 /**
  * Set trace file and format
@@ -125,7 +133,7 @@ void set_trace(FILE *file, enum format fmt);
  * @param[in] exp tree to compile
  * @param[inout] out file to output to
  */
-void generate_code(struct expr *exp, FILE *out);
+void generate_code(struct expr *exp, struct strtab *stab, FILE *out);
 
 extern bool optimize;
 

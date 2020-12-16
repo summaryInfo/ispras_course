@@ -72,7 +72,7 @@ inline static struct expr *node_of_size(enum tag tag, size_t n) {
  * @param[in] var variable name
  * @return new node
  */
- inline static struct expr *var_node(char *var) {
+ inline static struct expr *var_node(id_t var) {
     struct expr *tmp = malloc(sizeof(*tmp));
     assert(tmp);
 
@@ -107,7 +107,7 @@ inline static struct expr *node(enum tag tag, size_t nch, ...) {
     return tmp;
 }
 
-inline static struct expr *func_node(char *id, size_t nch, ...) {
+inline static struct expr *func_node(id_t id, size_t nch, ...) {
     struct expr *tmp = node_of_size(t_function, nch);
     assert(tmp);
 

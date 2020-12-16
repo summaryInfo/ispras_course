@@ -1,9 +1,10 @@
 #include "expr.h"
 #include "expr-impl.h"
+#include "strtab.h"
 
 #include <assert.h>
 
-static int dump_tree_graph(FILE *out, struct expr *expr, int index) {
+static int dump_tree_graph(FILE *out, struct strtab *stab, struct expr *expr, int index) {
     assert(expr && expr->tag <= t_MAX);
 
     enum tag tag = expr->tag;
@@ -15,15 +16,15 @@ static int dump_tree_graph(FILE *out, struct expr *expr, int index) {
     if (tag == t_constant) {
         fprintf(out, "\tn%d[label=\"const %lg\", shape=box, fillcolor=lightgrey, style=filled];\n", index, expr->value);
     } else if (tag == t_variable) {
-        fprintf(out, "\tn%d[label=\"var '%s'\", shape=box];\n", index, expr->id);
+        fprintf(out, "\tn%d[label=\"var '%s'\", shape=box];\n", index, string_of(stab, expr->id));
     } else {
         int node_index = index++, next_index;
 
         if (tag != t_function) fprintf(out, "\tn%d[label=\"%s\", shape=triangle, color=lightblue, style=filled];\n", node_index, info->name ? info->name : info->alt);
-        else fprintf(out, "\tn%d[label=\"function '%s'\", shape=triangle, color=lightgrey, style=filled];\n", index, expr->id);
+        else fprintf(out, "\tn%d[label=\"function '%s'\", color=lightgrey, style=filled];\n", node_index, string_of(stab, expr->id));
 
         do {
-            next_index = dump_tree_graph(out, *it++, index);
+            next_index = dump_tree_graph(out, stab, *it++, index);
             fprintf(out , "\tn%d -- n%d;\n", node_index, index);
             index = next_index;
         } while (it < &expr->children[expr->n_child]);
@@ -32,7 +33,7 @@ static int dump_tree_graph(FILE *out, struct expr *expr, int index) {
     return index + 1;
 }
 
-static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
+static void dump_tree_tex(FILE *out, struct strtab *stab, struct expr *expr, int outer_prio) {
     assert(expr && expr->tag <= t_MAX);
 
     enum tag tag = expr->tag;
@@ -49,14 +50,14 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
         break;
     case t_variable:
         assert(expr->id);
-        fputs(expr->id, out);
+        fputs(string_of(stab, expr->id), out);
         break;
     case t_function:
-        fprintf(out, "{{\\bf %s}\\left(", expr->id);
-        if (expr->n_child) dump_tree_tex(out, expr->children[0], MAX_PRIO);
+        fprintf(out, "{{\\bf %s}\\left(", string_of(stab, expr->id));
+        if (expr->n_child) dump_tree_tex(out, stab, expr->children[0], MAX_PRIO);
         for (size_t i = 1; i < expr->n_child; i++) {
             fputs(",\\,", out);
-            dump_tree_tex(out, expr->children[i], MAX_PRIO);
+            dump_tree_tex(out, stab, expr->children[i], MAX_PRIO);
         }
         fputs("\\right)}", out);
         break;
@@ -64,12 +65,12 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
     case t_if:
         if (outer_prio < info->prio) fputs("\\left(", out);
         fputs(tag == t_if ? "{{\\;\\bf if\\,}" : "{{\\;\\bf while\\,}", out);
-        dump_tree_tex(out, expr->children[0], info->prio);
+        dump_tree_tex(out, stab, expr->children[0], info->prio);
         fputs(tag == t_if ? "{\\;\\bf then\\,}" : "{\\;\\bf do\\,}", out);
-        dump_tree_tex(out, expr->children[1], info->prio);
+        dump_tree_tex(out, stab, expr->children[1], info->prio);
         if (tag == t_if && !is_eq_const(expr->children[2], 0)) {
             fputs("{\\;\\bf else\\,}", out);
-            dump_tree_tex(out, expr->children[2], info->prio);
+            dump_tree_tex(out, stab, expr->children[2], info->prio);
         }
         fputc('}', out);
         if (outer_prio < info->prio) fputs("\\right)", out);
@@ -92,7 +93,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
                 struct expr *ch = *it++;
                 if (ch->tag != t_inverse) {
                     if (nput) fputs(info->tex_name, out);
-                    dump_tree_tex(out, ch, MAX_PRIO);
+                    dump_tree_tex(out, stab, ch, MAX_PRIO);
                     nput++;
                 }
             }
@@ -107,7 +108,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
                 struct expr *ch = *it++;
                 if (ch->tag == t_inverse) {
                     if (nput) fputs(info->tex_name, out);
-                    dump_tree_tex(out, ch->children[0], MAX_PRIO);
+                    dump_tree_tex(out, stab, ch->children[0], MAX_PRIO);
                     nput++;
                 }
             }
@@ -122,7 +123,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
         struct expr **it = expr->children;
         if (expr->n_child == 1) fputs(info->tex_name, out);
         fputc('{', out);
-        dump_tree_tex(out, *it++, info->prio);
+        dump_tree_tex(out, stab, *it++, info->prio);
         fputc('}', out);
 
         assert(info->tex_name);
@@ -142,7 +143,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
             }
 
             fputc('{', out);
-            dump_tree_tex(out, ch, expr->tag == t_power ? MAX_PRIO : info->prio);
+            dump_tree_tex(out, stab, ch, expr->tag == t_power ? MAX_PRIO : info->prio);
             fputc('}', out);
         }
 
@@ -152,7 +153,7 @@ static void dump_tree_tex(FILE *out, struct expr *expr, int outer_prio) {
 }
 
 
-static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
+static void dump_tree_string(FILE *out, struct strtab *stab, struct expr *expr, int outer_prio) {
     assert(expr && expr->tag <= t_MAX);
 
     enum tag tag = expr->tag;
@@ -162,24 +163,24 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
         fprintf(out, "%lg", expr->value);
     } else if (tag == t_variable) {;
         assert(expr->id);
-        fputs(expr->id, out);
+        fputs(string_of(stab, expr->id), out);
     } else if (tag == t_function) {
-        fprintf(out, "%s(", expr->id);
-        if (expr->n_child) dump_tree_string(out, expr->children[0], MAX_PRIO);
+        fprintf(out, "%s(", string_of(stab, expr->id));
+        if (expr->n_child) dump_tree_string(out, stab, expr->children[0], MAX_PRIO);
         for (size_t i = 1; i < expr->n_child; i++) {
             fputs(", ", out);
-            dump_tree_string(out, expr->children[i], MAX_PRIO);
+            dump_tree_string(out, stab, expr->children[i], MAX_PRIO);
         }
         fputc(')', out);
     } else if (tag == t_if || tag == t_while) {
         if (outer_prio < info->prio) fputc('(', out);
         fputs(tag == t_if ? "if " : "while ", out);
-        dump_tree_string(out, expr->children[0], info->prio);
+        dump_tree_string(out, stab, expr->children[0], info->prio);
         fputs(tag == t_if ? " then " : " do ", out);
-        dump_tree_string(out, expr->children[1], info->prio);
+        dump_tree_string(out, stab, expr->children[1], info->prio);
         if (tag == t_if && !is_eq_const(expr->children[2], 0)) {
             fputs(" else ", out);
-            dump_tree_string(out, expr->children[2], info->prio);
+            dump_tree_string(out, stab, expr->children[2], info->prio);
         }
         if (outer_prio < info->prio) fputc(')', out);
     } else {
@@ -192,7 +193,7 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
 
         struct expr **it = expr->children;
         if (expr->n_child == 1 && info->arity == 1) fputs(info->name, out);
-        dump_tree_string(out, *it++, info->prio);
+        dump_tree_string(out, stab, *it++, info->prio);
 
         while (it < &expr->children[expr->n_child]) {
             struct expr *ch = *it++;
@@ -208,7 +209,7 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
                 fputs(info->name, out);
             }
 
-            dump_tree_string(out, ch, info->prio);
+            dump_tree_string(out, stab, ch, info->prio);
         }
 
         if (outer_prio < info->prio ||
@@ -216,22 +217,22 @@ static void dump_tree_string(FILE *out, struct expr *expr, int outer_prio) {
     }
 }
 
-void dump_tree(FILE *out, enum format fmt, struct expr *expr, bool full) {
+void dump_tree(FILE *out, enum format fmt, struct expr *expr, struct strtab *stab, bool full) {
     switch (fmt) {
     case fmt_graph:
         fputs("graph \"\" {\n\tlabel = \"", out);
-        dump_tree_string(out, expr, MAX_PRIO);
+        dump_tree_string(out, stab, expr, MAX_PRIO);
         fputs("\";\n", out);
-        dump_tree_graph(out, expr, 0);
+        dump_tree_graph(out, stab, expr, 0);
         fputs("}\n", out);
         break;
     case fmt_string:
-        dump_tree_string(out, expr, MAX_PRIO);
+        dump_tree_string(out, stab, expr, MAX_PRIO);
         fputc('\n', out);
         break;
     case fmt_tex:
         fputs("$$\n", out);
-        dump_tree_tex(out, expr, MAX_PRIO);
+        dump_tree_tex(out, stab, expr, MAX_PRIO);
         fputs("\n$$\n", out);
         if (full) fputs("\\bye\n", out);
         break;

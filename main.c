@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "expr.h"
+#include "strtab.h"
 
 #include <fcntl.h>
 #include <getopt.h>
@@ -103,7 +104,10 @@ int main(int argc, char **argv) {
     FILE *out = output ? fopen(output, "w") : stdout;
     if (!out) return ERC_NO_OUT_FILE;
 
-    struct expr *exp = parse_tree(in);
+    struct strtab stab;
+    init_strtab(&stab);
+
+    struct expr *exp = parse_tree(&stab, in);
     if (!exp) return ERC_WRONG_EXPR;
 
     FILE *tfile = NULL;
@@ -116,7 +120,7 @@ int main(int argc, char **argv) {
         set_trace(tfile ? tfile : stdout, tracefmt);
     }
 
-    if (optimize) exp = optimize_tree(exp);
+    if (optimize) exp = optimize_tree(exp, &stab);
 
     if (tfile && tracefmt == fmt_tex)
         fputs("\\bye\n", tfile);
@@ -124,13 +128,14 @@ int main(int argc, char **argv) {
     if (asmout) {
         FILE *as = fopen(asmout, "w");
         if (!as) usage(argv[0]);
-        generate_code(exp, as);
+        generate_code(exp, &stab, as);
         fclose(as);
-    } else dump_tree(out, fmt, exp, 1);
+    } else dump_tree(out, fmt, exp, &stab, 1);
 
     if (input) munmap((void *)in, size);
     if (tfile) fclose(tfile);
 
+    free_strtab(&stab);
     free_tree(exp);
     return 0;
 }
