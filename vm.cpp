@@ -346,6 +346,17 @@ static void log_d(vm_state &vm) {
     double sq = std::log(vm.pop<double>());
     vm.push(sq);
 }
+
+static void sin_d(vm_state &vm) {
+    double sq = std::sin(vm.pop<double>());
+    vm.push(sq);
+}
+
+static void cos_d(vm_state &vm) {
+    double sq = std::cos(vm.pop<double>());
+    vm.push(sq);
+}
+
 static void power_d(vm_state &vm) {
     double p = vm.pop<double>();
     double sq = std::pow(vm.pop<double>(), p);
@@ -378,6 +389,8 @@ vm_state::vm_state(std::size_t stack_size, std::string path) {
     defnative(scan_d, "()d", "scan_d");
     defnative(sqrt_d, "(d)d", "sqrt_d");
     defnative(log_d, "(d)d", "log_d");
+    defnative(sin_d, "(d)d", "sin_d");
+    defnative(cos_d, "(d)d", "cos_d");
     defnative(power_d, "(dd)d", "power_d");
 
     for (function &fn : object.functions)
