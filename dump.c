@@ -61,6 +61,9 @@ static void dump_tree_tex(FILE *out, struct strtab *stab, struct expr *expr, int
         }
         fputs("\\right)}", out);
         break;
+    case t_funcdef:
+        fputs("0", out);
+        break;
     case t_while:
     case t_if:
         if (outer_prio < info->prio) fputs("\\left(", out);
@@ -159,12 +162,15 @@ static void dump_tree_string(FILE *out, struct strtab *stab, struct expr *expr, 
     enum tag tag = expr->tag;
     struct tag_info *info = &tags[tag];
 
-    if (tag == t_constant) {
+    switch(tag) {
+    case t_constant:
         fprintf(out, "%lg", expr->value);
-    } else if (tag == t_variable) {;
+        break;
+    case t_variable:
         assert(expr->id);
         fputs(string_of(stab, expr->id), out);
-    } else if (tag == t_function) {
+        break;
+    case t_function:
         fprintf(out, "%s(", string_of(stab, expr->id));
         if (expr->n_child) dump_tree_string(out, stab, expr->children[0], MAX_PRIO);
         for (size_t i = 1; i < expr->n_child; i++) {
@@ -172,7 +178,20 @@ static void dump_tree_string(FILE *out, struct strtab *stab, struct expr *expr, 
             dump_tree_string(out, stab, expr->children[i], MAX_PRIO);
         }
         fputc(')', out);
-    } else if (tag == t_if || tag == t_while) {
+        break;
+    case t_funcdef:
+        fputc('[', out);
+        assert(expr->children[0]->tag == t_statement);
+        for (size_t i = 0; i < expr->children[0]->n_child; i++) {
+            assert(expr->children[0]->children[i]->tag == t_variable);
+            fprintf(out, "%s%s", i ? "," : "", string_of(stab, expr->children[0]->children[i]->id));
+        }
+        fputc(':', out);
+        dump_tree_string(out, stab, expr->children[1], MAX_PRIO);
+        fprintf(out ,"]%s", string_of(stab, expr->id));
+        break;
+    case t_while:
+    case t_if:
         if (outer_prio < info->prio) fputc('(', out);
         fputs(tag == t_if ? "if " : "while ", out);
         dump_tree_string(out, stab, expr->children[0], info->prio);
@@ -183,8 +202,8 @@ static void dump_tree_string(FILE *out, struct strtab *stab, struct expr *expr, 
             dump_tree_string(out, stab, expr->children[2], info->prio);
         }
         if (outer_prio < info->prio) fputc(')', out);
-    } else {
-
+        break;
+    default:
         if (outer_prio < info->prio ||
             (outer_prio == info->prio && tag == t_power)) fputc('(', out);
 
@@ -217,6 +236,21 @@ static void dump_tree_string(FILE *out, struct strtab *stab, struct expr *expr, 
     }
 }
 
+static bool dump_functions_tex(FILE *out, struct expr *exp, struct strtab *stab, bool any) {
+    for (size_t i = 0; i < exp->n_child; i++)
+        any |= dump_functions_tex(out, exp->children[i], stab, any);
+    if (exp->tag == t_funcdef) {
+        fprintf(out, "%s ${\\bf %s}(", any ? "and" : "Where", string_of(stab, exp->id));
+        for (size_t i = 0; i < exp->children[0]->n_child; i++)
+            fprintf(out, "%s%s", i ? ", " : "", string_of(stab, exp->children[0]->children[i]->id));
+        fprintf(out, ") = ");
+        dump_tree_tex(out, stab, exp->children[1], MAX_PRIO);
+        fprintf(out, "$\n");
+        any |= 1;
+    }
+    return any;
+}
+
 void dump_tree(FILE *out, enum format fmt, struct expr *expr, struct strtab *stab, bool full) {
     switch (fmt) {
     case fmt_graph:
@@ -234,6 +268,7 @@ void dump_tree(FILE *out, enum format fmt, struct expr *expr, struct strtab *sta
         fputs("$$\n", out);
         dump_tree_tex(out, stab, expr, MAX_PRIO);
         fputs("\n$$\n", out);
+        dump_functions_tex(out, expr, stab, 0);
         if (full) fputs("\\bye\n", out);
         break;
     }

@@ -39,6 +39,9 @@ enum static_ids {
     power_,
     comma_,
     semi_,
+    print_,
+    sin_,
+    cos_
 };
 
 #define STRTAB_INIT ((struct strtab){0})

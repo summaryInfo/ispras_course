@@ -76,6 +76,9 @@ void init_strtab(struct strtab *stab) {
     *stab = STRTAB_INIT;
     id_t res;
 
+    // TODO: May remove static node type and just use symbols
+    //       (That really look like lisp...)
+
     res = intern(stab, strdup("log")); assert(res == log_);
     assert(!strcmp("log", string_of(stab, res)));
     assert(intern(stab, strdup("log")) == log_);
@@ -102,4 +105,7 @@ void init_strtab(struct strtab *stab) {
     res = intern(stab, strdup("^")); assert(res == power_);
     res = intern(stab, strdup(",")); assert(res == comma_);
     res = intern(stab, strdup(";")); assert(res == semi_);
+    res = intern(stab, strdup("print")); assert(res == print_);
+    res = intern(stab, strdup("sin")); assert(res == sin_);
+    res = intern(stab, strdup("cos")); assert(res == cos_);
 }

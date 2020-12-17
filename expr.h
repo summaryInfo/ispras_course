@@ -40,7 +40,8 @@ enum tag {
     t_statement,
     t_assign,
     t_function,
-    t_MAX = t_function,
+    t_funcdef, // Ex. [x,y|x]f ===> funcdef "f"{statement{variable "x",variable "y"},variable "x"}
+    t_MAX = t_funcdef,
 };
 
 /**

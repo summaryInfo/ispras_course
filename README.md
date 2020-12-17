@@ -37,6 +37,7 @@ Examples:
 
     ./parse -f tex -o out.tex "(1+x)/2"
     ./parse -f graph -o out.dot "x*y*x + --2"
+    ./parse "sin(x)'x+cos(y)'y"
     ./parse  -o out.txt "!(123 < 1 && x / 2 >= y)"
     ./parse "x + 2 < 4*x || x == 2"
     ./parse -O "(x^x+x*(x+y))'x"
@@ -50,6 +51,8 @@ Compile to assembly:
 
     ./parse -ct.xs "if 1 > 2 then x else log(4)/log(2)"
     ./parse -cg.xs "x=0;while x < 25 do x = x + 1;x^0.5"
+    ./parse -cf.xs "[x,y:log(x+1)]f;print(f(2,1))"
+    ./parse -cn.xs "[x:acc=1;i=0;res=1;while i < 20 do (i = i + 1; acc = acc*x/i;res = res + acc);res]exp;x=scan();print(exp(x))"
 
 Using wrapper:
 
@@ -62,6 +65,7 @@ Using wrapper:
     ./display optimize-graph "if (2;4;5) then 6 else 7"
     ./display graph "if (2;4;5) then 6 else 7"
     ./display tex "if 1 then 2 else while x do y;x+1"
+    ./display graph "[x:acc=1;i=0;res=1;while i < 20 do (i = i + 1; acc = acc*x/i;res = res + acc);res]exp;x=scan();print(exp(x))"
 
 ## Notes
 

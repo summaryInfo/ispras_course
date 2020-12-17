@@ -26,7 +26,8 @@
  * E3 := E3 "*" E2 | E3 "/" E2 | E2
  * E2 := E1 "^" E2 | E1
  * E1 := "+" E1 | "-" E1 | E0
- * E0 := VAR ("'" VAR) | NUM ("'" VAR) | "(" E12 ")" ("'" VAR) | VAR ARGLIST ("'" E0)
+ * E0 := (FDEF | NUM | "(" E12 ")" | VAR ("("ARGLIST")")) ("'" E0)
+ * FDEF := "[" ARGLIST "|" E12 "]" VAR
  * ARGLIST := E12 ("," E12)
  * NUM := <c double constant>
  * LETTER = "a" | ... | "z" | "A" | ... | "Z"
@@ -40,6 +41,7 @@ struct tag_info tags[] = {
     [t_constant] = {NULL, NULL, 0, 0},
     [t_variable] = {NULL, NULL, 0, 0},
     [t_function] = {NULL, "function", -1, 0},
+    [t_funcdef] = {NULL, "def", 2, 0},
     [t_power] = {"^", "^", 2, 1},
     [t_negate] =  {"-", "-", 1, 2},
     [t_inverse] =  {NULL, "1/", 1, 3},
@@ -185,7 +187,18 @@ static struct expr *exp_12(struct state *st);
 
 static struct expr *exp_0(struct state *st) /* const, var, (), log ' */ {
     struct expr *res = NULL;
-    if (expect(st, "(")) {;
+    if (expect(st, "[")) {
+        res = node(t_funcdef, 2, node(t_statement, 0), NULL);
+        do {
+            struct expr *tmp = var_node(expect_id(st));
+            if (!tmp) break;
+            append_child(st, &res->children[0], t_statement, NULL, tmp);
+        } while (expect(st, ","));
+        st->success &= expect(st, ":");
+        res->children[1] = exp_13(st);
+        st->success &= expect(st, "]");
+        res->id = expect_id(st);
+    } else if (expect(st, "(")) {
         res = exp_13(st);
         st->success &= expect(st, ")");
     } else if (isdigit(peek_space(st)))
@@ -194,8 +207,11 @@ static struct expr *exp_0(struct state *st) /* const, var, (), log ' */ {
         res = var_node(expect_id(st));
         if (expect(st, "(") ) {
             res->tag = t_function;
-            do append_child(st, &res, t_function, NULL, exp_13(st));
-            while (expect(st, ","));
+            do {
+                struct expr *tmp = exp_13(st);
+                if (!tmp) break;
+                append_child(st, &res, t_function, NULL, tmp);
+            } while (expect(st, ","));
             st->success &= expect(st, ")");
         }
     }
@@ -207,7 +223,7 @@ static struct expr *exp_0(struct state *st) /* const, var, (), log ' */ {
             res = derive_tree(res, st->stab, var);
             if (!res) set_fail(st, "<derivable expession>");
         }
-    } else set_fail(st, "<number>' or '<variable>");
+    } //else set_fail(st, "<number>' or '<variable>");
 
     return res;
 }

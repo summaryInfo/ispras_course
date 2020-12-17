@@ -114,6 +114,11 @@ struct expr *derive_tree(struct expr *exp, struct strtab *stab, id_t var) {
                 free_tree(res);
                 return NULL;
             }
+        } else if (exp->id == sin_) {
+            exp->id = cos_;
+        } else if (exp->id == cos_) {
+            exp->id = sin_;
+            res = node(t_negate, 1, exp);
         } else {
             // TODO
             free_tree(res);
@@ -215,7 +220,7 @@ inline static bool remove_child(struct expr *exp, struct expr *rem, double c) {
 struct expr *eliminate_common(struct expr *exp) {
     if (has_childern(exp)) {
         // Recursively handle children first
-        for (size_t i = 0; i < exp->n_child; i++)
+        for (size_t i = exp->tag == t_funcdef; i < exp->n_child; i++)
             exp->children[i] = eliminate_common(exp->children[i]);
     }
 
@@ -348,7 +353,7 @@ struct expr *eliminate_common(struct expr *exp) {
 static struct expr *fold_constants(struct expr *exp) {
     if (has_childern(exp)) {
         // Recursively fold children first
-        for (size_t i = 0; i < exp->n_child; i++)
+        for (size_t i = exp->tag == t_funcdef; i < exp->n_child; i++)
             exp->children[i] = fold_constants(exp->children[i]);
     }
 
@@ -377,6 +382,16 @@ static struct expr *fold_constants(struct expr *exp) {
         if (exp->id == log_) {
             if (is_const(exp->children[0])) {
                 res = const_node(log(exp->children[0]->value));
+                free_tree(exp);
+            }
+        } else if (exp->id == sin_) {
+            if (is_const(exp->children[0])) {
+                res = const_node(sin(exp->children[0]->value));
+                free_tree(exp);
+            }
+        } else if (exp->id == cos_) {
+            if (is_const(exp->children[0])) {
+                res = const_node(cos(exp->children[0]->value));
                 free_tree(exp);
             }
         }
@@ -550,8 +565,9 @@ static struct expr *fold_constants(struct expr *exp) {
             free_tree(exp);
         }
         break;
-    case t_assign:;
-        // TODO Dead assignments?
+    case t_funcdef:
+    case t_assign:
+        // Cannot fold something that have side effects
         break;
     }
 
@@ -569,7 +585,7 @@ inline static void push_node(struct expr *exp, enum tag tag) {
 static struct expr *fold_ops(struct expr *exp) {
     if (has_childern(exp)) {
         // Recursively fold children first
-        for (size_t i = 0; i < exp->n_child; i++) {
+        for (size_t i = exp->tag == t_funcdef; i < exp->n_child; i++) {
             exp->children[i] = fold_ops(exp->children[i]);
         }
     }
@@ -629,7 +645,7 @@ static struct expr *fold_ops(struct expr *exp) {
 static struct expr *push_ops(struct expr *exp) {
     if (has_childern(exp)) {
         // Recursively fold children first
-        for (size_t i = 0; i < exp->n_child; i++)
+        for (size_t i = exp->tag == t_funcdef; i < exp->n_child; i++)
             exp->children[i] = push_ops(exp->children[i]);
     }
 
