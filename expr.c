@@ -207,7 +207,7 @@ static struct expr *exp_0(struct state *st) /* const, var, (), log ' */ {
         res = var_node(expect_id(st));
         if (expect(st, "(") ) {
             res->tag = t_function;
-            do {
+            if (peek_space(st) != ')') do {
                 struct expr *tmp = exp_13(st);
                 if (!tmp) break;
                 append_child(st, &res, t_function, NULL, tmp);
@@ -223,7 +223,7 @@ static struct expr *exp_0(struct state *st) /* const, var, (), log ' */ {
             res = derive_tree(res, st->stab, var);
             if (!res) set_fail(st, "<derivable expession>");
         }
-    } //else set_fail(st, "<number>' or '<variable>");
+    } else set_fail(st, "<number>' or '<variable>");
 
     return res;
 }
@@ -440,8 +440,8 @@ struct expr *parse_tree(struct strtab *stab, const char *in) {
             (int)(res + 1), '^', (int)(res + 1), '|');
 
         fprintf(stderr, st.expected ?
-            "Unexpected character at %d, expected '%s'\n" :
-            "Internal error at %d\n", res, st.expected);
+            "ERROR: Unexpected character at %d, expected '%s'\n" :
+            "ERROR: Internal error at %d\n", res, st.expected);
 
         free_tree(tree);
         return NULL;

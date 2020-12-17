@@ -58,6 +58,7 @@ struct expr {
    /* children are stored
     * in flexible array member */
    size_t n_child;
+   // TODO Add debug info here
    struct expr *children[];
 };
 

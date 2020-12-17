@@ -59,7 +59,14 @@ static void do_codegen(struct expr *exp, struct genstate *st) {
         break;
     case t_function: {
         struct funcdef *fn = find_funcdef(st, exp->id);
-        assert(fn && exp->n_child == fn->nargs);
+        if (!fn) {
+            fprintf(stderr, "ERROR: No function with name '%s'\n", string_of(st->stab, exp->id));
+            abort();
+        } else if (fn->nargs != exp->n_child) {
+            fprintf(stderr, "ERROR: Function signature missmatch for '%s'\n", string_of(st->stab, exp->id));
+            fprintf(stderr, "%s() takes %zd arguments, but %zd was provided\n", string_of(st->stab, exp->id), fn->nargs, exp->n_child);
+            abort();
+        }
         for (size_t i = 0; i < exp->n_child; i++)
             do_codegen(exp->children[exp->n_child - 1 - i], st);
         if (fn->isvoid)
