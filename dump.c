@@ -11,7 +11,7 @@ static int dump_tree_graph(FILE *out, struct strtab *stab, struct expr *expr, in
     struct tag_info *info = &tags[tag];
     struct expr **it = expr->children;
 
-    assert((tags[tag].arity < 0 && expr->n_child > 0) || (size_t)tags[tag].arity == expr->n_child);
+    assert((tags[tag].arity < 0 && expr->n_child > 0) || (size_t)tags[tag].arity == expr->n_child || tag == t_function);
 
     if (tag == t_constant) {
         fprintf(out, "\tn%d[label=\"const %lg\", shape=box, fillcolor=lightgrey, style=filled];\n", index, expr->value);
@@ -23,11 +23,11 @@ static int dump_tree_graph(FILE *out, struct strtab *stab, struct expr *expr, in
         if (tag != t_function) fprintf(out, "\tn%d[label=\"%s\", shape=triangle, color=lightblue, style=filled];\n", node_index, info->name ? info->name : info->alt);
         else fprintf(out, "\tn%d[label=\"function '%s'\", color=lightgrey, style=filled];\n", node_index, string_of(stab, expr->id));
 
-        do {
+        while (it < &expr->children[expr->n_child]) {
             next_index = dump_tree_graph(out, stab, *it++, index);
             fprintf(out , "\tn%d -- n%d;\n", node_index, index);
             index = next_index;
-        } while (it < &expr->children[expr->n_child]);
+        }
     }
 
     return index + 1;
@@ -42,6 +42,7 @@ static void dump_tree_tex(FILE *out, struct strtab *stab, struct expr *expr, int
     assert(tag == t_constant ||
            tag == t_variable ||
            (info->arity < 0 && expr->n_child > 0) ||
+           tag == t_function ||
            (size_t)info->arity == expr->n_child);
 
     switch(tag) {
@@ -239,13 +240,14 @@ static void dump_tree_string(FILE *out, struct strtab *stab, struct expr *expr, 
 static bool dump_functions_tex(FILE *out, struct expr *exp, struct strtab *stab, bool any) {
     for (size_t i = 0; i < exp->n_child; i++)
         any |= dump_functions_tex(out, exp->children[i], stab, any);
+    // TODO Indentation
     if (exp->tag == t_funcdef) {
-        fprintf(out, "%s ${\\bf %s}(", any ? "and" : "Where", string_of(stab, exp->id));
+        fprintf(out, "%s ${\\bf %s}\\left(", any ? "and" : "Where", string_of(stab, exp->id));
         for (size_t i = 0; i < exp->children[0]->n_child; i++)
             fprintf(out, "%s%s", i ? ", " : "", string_of(stab, exp->children[0]->children[i]->id));
-        fprintf(out, ") = ");
+        fprintf(out, "\\right) = \\left(");
         dump_tree_tex(out, stab, exp->children[1], MAX_PRIO);
-        fprintf(out, "$\n");
+        fprintf(out, "\\right)$\n");
         any |= 1;
     }
     return any;
