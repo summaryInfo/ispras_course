@@ -325,4 +325,7 @@ void generate_code(struct expr *exp, struct strtab *stab, FILE *out) {
     // (all of them are locals for now and read automatically upon startup)
     generate_function("main", 0, NULL, exp, &st);
     generate_rec_functions(exp, &st);
+
+    free(st.globals);
+    free(st.defs);
 }
